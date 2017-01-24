@@ -17,15 +17,16 @@ s.bind((host, port))
 s.listen(1)
 
 while 1:
+	print "Waiting for file request from client..."
 	conn, addr = s.accept()
 	print 'Connected by', addr
 	data = conn.recv(1024)
-	#print "Received from client:", repr(data)
+	print "File request received from client for:", repr(data)
 	#filename = repr(data)
 	filename = data
 	myfile = open(filename, 'r')
 	myfilestr = myfile.read()
-	print "Loading file...", myfilestr
+	print "File sent to client."
 	#print os.path.getsize(data)
 	myfilelen =  str(len(myfilestr))
 	myblanks = ' ' * (100-len(myfilelen))
