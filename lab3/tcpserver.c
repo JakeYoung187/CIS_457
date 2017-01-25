@@ -9,8 +9,16 @@
 // so each thread sees the same global vars
 // solution: semaphore/mutex
 
+struct clientinfo {
+	struct sockaddr_in addr;
+	int socket;
+};
+
 void* handleclient(void *arg) {
-	int clientsocket = *(int *)arg;
+	struct clientinfo ci = *(struct clientinfo *)arg;
+	//int clientsocket = *(int *)arg;
+	int clientsocket = ci.socket;
+	struct sockaddr_in clientaddr = ci.addr;
 	char line[5000];
 	int n = recv(clientsocket, line, 5000, 0);
 	printf("Got from the client: %s\n", line);
@@ -35,10 +43,15 @@ int main(int argc, char** argv) {
 	listen(sockfd,10);
 	while (1) {
 		int len = sizeof(clientaddr);
-		int clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, &len);		
+		int clientsocket = accept(sockfd, (struct sockaddr*)&clientaddr, &len);
+		struct clientinfo ci;
+		ci.socket = clientsocket;
+		ci.addr = clientaddr;	
 		pthread_t child; // thread handle, reference thread
-		// pointer to thread, pthread attrs, function to run, void pointer to args
-		pthread_create(&child, NULL, handleclient, &clientsocket);
+		// 1. pointer to thread, 2. pthread attrs, 
+		// 3. function to run, 4. void pointer to args
+		//pthread_create(&child, NULL, handleclient, &clientsocket);
+		pthread_create(&child, NULL, handleclient, &ci);
 		// don't care about return value, but want to clean up memory
 		pthread_detach(child);	
 	}
