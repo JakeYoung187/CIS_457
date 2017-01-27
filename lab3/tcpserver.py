@@ -7,38 +7,51 @@ Purpose: CIS 457 Lab 3
 Details: TCP Simple Chat
 '''
 
-import socket, os, sys
+import socket, os, sys, threading
 
-host = ''
-port = int(raw_input('port: '))
-if port < 0 or port > 65536:
-	print "Invalid Port Number"
-	sys.exit(0)
+class myThread (threading.Thread):
+	def __init__(self, conn):
+		threading.Thread.__init__(self)
+		self.conn = conn
+	def run(self):
+		# server thread running
+		new_message = self.conn.recv(1024)
+		if new_message == "Client quitting":
+			print "\n",new_message
+			self.conn.close()
+			os._exit(1)	
+		else:
+			print "\nClient:",new_message
+			print "\nServer: "
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((host, port))
-s.listen(1)
+def main():
 
-# multiple clients in sequence
-while 1:
-	print "Waiting for file request from client..."
+	host = ''
+	port = int(raw_input('port: '))
+	if port < 0 or port > 65536:
+		print "Invalid Port Number"
+		sys.exit(0)
+
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.bind((host, port))
+	s.listen(1)
 	conn, addr = s.accept()
 	print 'Connected by', addr
 	
-	# receive filename from client
-	filename = conn.recv(1024)
-	print "File request received from client for:", repr(filename)
-	
-	# read this file 
-	myfile = open(filename, 'r')
-	myfilestr = myfile.read()
-	print "File sent to client."
-	
-	# create a string of file length with 100-n blanks appended
-	# so server knows exact length of filelength string
-	myfilelen =  str(len(myfilestr))
-	myblanks = ' ' * (100-len(myfilelen))
-	mynewfilelen = myfilelen + myblanks
-	conn.sendall(mynewfilelen)
-	conn.sendall(myfilestr)
-conn.close()
+	while 1:
+		thread = myThread(conn)
+		#thread.setDaemon(True)
+		thread.start()
+		
+		message = raw_input('\nServer: ')
+		
+		if message.lower() == "quit":
+			conn.sendall("Server quitting")
+			conn.close()
+			os._exit(1)
+
+		else:
+			conn.sendall(message)
+
+if __name__ == "__main__":
+    main()
