@@ -15,14 +15,29 @@ class myThread (threading.Thread):
 		self.conn = conn
 	def run(self):
 		while 1:
-			new_message = self.conn.recv(1024)
-			if new_message == "Client quitting":
-				print "\n",new_message
+			filename = self.conn.recv(1024)
+			if filename == "Client quitting":
+				print "\n",filename
 				self.conn.close()
 				os._exit(1)	
 			else:
-				print "\nClient:",new_message
-	#			print "\nServer: "
+				# receive filename from client
+				#filename = self.conn.recv(1024)
+				print "File request received from client for:", filename
+
+				# read this file 
+				myfile = open(filename, 'r')
+				myfilestr = myfile.read()
+				print myfilestr
+				print "File sent to client."
+
+				# create a string of file length with 100-n blanks appended
+				# so server knows exact length of filelength string
+				myfilelen =  str(len(myfilestr))
+				myblanks = ' ' * (100-len(myfilelen))
+				mynewfilelen = myfilelen + myblanks
+				self.conn.sendall(mynewfilelen)
+				self.conn.sendall(myfilestr)
 
 def main():
 
@@ -34,7 +49,6 @@ def main():
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind((host, port))
-	#s.listen(1)
 	
 	while 1:
 		s.listen(1)
@@ -43,15 +57,5 @@ def main():
 		thread = myThread(conn)
 		thread.start()
 		
-	#	message = raw_input('\nServer: ')
-		
-	#	if message.lower() == "quit":
-	#		conn.sendall("Server quitting")
-	#		conn.close()
-	#		os._exit(1)
-
-	#	else:
-	#		conn.sendall(message)
-
 if __name__ == "__main__":
     main()
