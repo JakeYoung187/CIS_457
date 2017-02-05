@@ -14,14 +14,15 @@ class myThread (threading.Thread):
 		threading.Thread.__init__(self)
 		self.conn = conn
 	def run(self):
-		new_message = self.conn.recv(1024)
-		if new_message == "Client quitting":
-			print "\n",new_message
-			self.conn.close()
-			os._exit(1)	
-		else:
-			print "\nClient:",new_message
-			print "\nServer: "
+		while 1:
+			new_message = self.conn.recv(1024)
+			if new_message == "Client quitting":
+				print "\n",new_message
+				self.conn.close()
+				os._exit(1)	
+			else:
+				print "\nClient:",new_message
+	#			print "\nServer: "
 
 def main():
 
@@ -42,15 +43,15 @@ def main():
 		thread = myThread(conn)
 		thread.start()
 		
-		message = raw_input('\nServer: ')
+	#	message = raw_input('\nServer: ')
 		
-		if message.lower() == "quit":
-			conn.sendall("Server quitting")
-			conn.close()
-			os._exit(1)
+	#	if message.lower() == "quit":
+	#		conn.sendall("Server quitting")
+	#		conn.close()
+	#		os._exit(1)
 
-		else:
-			conn.sendall(message)
+	#	else:
+	#		conn.sendall(message)
 
 if __name__ == "__main__":
     main()

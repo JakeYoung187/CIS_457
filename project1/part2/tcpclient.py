@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 '''
-Developer: Adam Terwilliger
-Version: January 27, 2017
-Purpose: CIS 457 Lab 3
-Details: TCP Simple Chat
+Developer: Ellysa Stanton, Adam Terwilliger
+Version: February 6, 2017
+Purpose: CIS 457 Project 1 Part 2
+Details: TCP Multi-threaded File Transfer
 '''
 
 import socket, os, sys, threading
@@ -22,7 +22,7 @@ class myThread (threading.Thread):
 			self.s.close()
 			os._exit(1)
 		else:
-			print "\nServer:",new_message
+	#		print "\nServer:",new_message
 			print "\nClient: "
 
 
