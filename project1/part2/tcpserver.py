@@ -9,17 +9,25 @@ Details: TCP Multi-threaded File Transfer
 
 import socket, os, sys, threading
 
+clientcount = 0
+
 class myThread (threading.Thread):
 	def __init__(self, conn):
 		threading.Thread.__init__(self)
 		self.conn = conn
 	def run(self):
+		global clientcount
 		while 1:
 			filename = self.conn.recv(1024)
 			if filename == "Client quitting":
 				print "\n",filename
-				self.conn.close()
-				os._exit(1)	
+		#		self.conn.close()
+		#		os._exit(1)	
+				clientcount -= 1
+				if (clientcount == 0):
+					self.conn.close()
+					os._exit(1)	
+
 			else:
 				# receive filename from client
 				print "File request received from client for:", filename
@@ -48,14 +56,21 @@ def main():
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind((host, port))
+		
+	global clientcount
 	
 	while 1:
 		s.listen(1)
 		conn, addr = s.accept()
 		print 'Connected by', addr
+		clientcount += 1	
 		thread = myThread(conn)
 		thread.start()
 		print "starting thread"	
-	
+		
+		#if (clientcount == 0):
+		#	conn.close()
+		#	os._exit(1)	
+
 if __name__ == "__main__":
     main()
