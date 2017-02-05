@@ -14,7 +14,7 @@ class myThread (threading.Thread):
 		threading.Thread.__init__(self)
 		self.conn = conn
 	def run(self):
-		#while 1:
+		while 1:
 			filename = self.conn.recv(1024)
 			if filename == "Client quitting":
 				print "\n",filename
@@ -49,13 +49,13 @@ def main():
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	s.bind((host, port))
 	
-	#while 1:
-	s.listen(1)
-	conn, addr = s.accept()
-	print 'Connected by', addr
-	thread = myThread(conn)
-	thread.start()
-	#print "starting thread"	
+	while 1:
+		s.listen(1)
+		conn, addr = s.accept()
+		print 'Connected by', addr
+		thread = myThread(conn)
+		thread.start()
+		print "starting thread"	
 	
 if __name__ == "__main__":
     main()
