@@ -20,7 +20,7 @@ class myThread (threading.Thread):
 		while 1:
 			filename = self.conn.recv(1024)
 			if filename == "Client quitting":
-				print "\n",filename
+				print filename
 		#		self.conn.close()
 		#		os._exit(1)	
 				clientcount -= 1
@@ -35,7 +35,7 @@ class myThread (threading.Thread):
 				# read this file 
 				myfile = open(filename, 'r')
 				myfilestr = myfile.read()
-				print myfilestr
+		#		print myfilestr
 				print "File sent to client."
 
 				# create a string of file length with 100-n blanks appended
@@ -66,7 +66,7 @@ def main():
 		clientcount += 1	
 		thread = myThread(conn)
 		thread.start()
-		print "starting thread"	
+		#print "starting thread"	
 		
 		#if (clientcount == 0):
 		#	conn.close()
