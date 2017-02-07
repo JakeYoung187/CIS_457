@@ -24,7 +24,7 @@ class myThread (threading.Thread):
 		else:	
 			print "\nSent filename to server."
 			
-			myfilelen = self.s.recv(20).strip()
+			myfilelen = self.s.recv(100).strip()
 			if myfilelen == "File N/A":
 				print "\nInvalid file. Type \"ls\" to see available files on server."
 			else:

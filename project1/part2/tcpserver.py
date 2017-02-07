@@ -21,7 +21,7 @@ class myThread (threading.Thread):
 		while 1:
 			filename = self.conn.recv(1024)
 			if filename == "Client quitting.":
-				print("\nClient {} quitting".format(clientcount))
+				print ("\nClient {} quitting.".format(clientcount))
 				clientcount -= 1
 				if (clientcount == 0):
 					print "\nServer quitting."
@@ -29,32 +29,30 @@ class myThread (threading.Thread):
 					os._exit(1)	
 
 			elif filename == "ls":
-				print("\nClient {} requested a list of files on server.".format(clientcount))
-				self.conn.sendall(str(self.serverfl))
-			
-			elif filename not in self.serverfl:
-				print("\nClient {} requested a file not on server.".format(clientcount))
-				myInvalidMsg = appendBlanks("File N/A",20)
-				self.conn.sendall(myInvalidMsg)
-			
-			elif filename != '':
+				print "\nClient requested a list of files on server."
+				self.conn.sendall(str(self.serverfl))	
+				
+			elif filename in self.serverfl:
 				# receive filename from client
-				print "\nFile request received from client for:", filename
+				print ("\nFile request received from client for: {}".format(filename))
 
 				# read this file 
 				myfile = open(filename, 'r')
 				myfilestr = myfile.read()
-				#print "\nFile sent to client."
 
-				# create a string of file length with 20-n blanks appended
-				# so server knows exact length of filelength string
 				myfilelen =  str(len(myfilestr))
-				#myblanks = ' ' * (20-len(myfilelen))
-				#mynewfilelen = myfilelen + myblanks
-				mynewfilelen = appendBlanks(myfilelen,20)
+				mynewfilelen = appendBlanks(myfilelen,100)
 				self.conn.sendall(mynewfilelen)
 				self.conn.sendall(myfilestr)
+			
+			elif filename not in self.serverfl and filename != "Client quitting." and filename != '':
+				print "\nClient requested a file not on server."
+				myInvalidMsg = appendBlanks("File N/A",100)
+				self.conn.sendall(myInvalidMsg)
+			
 
+# create a string of file length with 100-n blanks appended
+# so server knows exact length of filelength string
 def appendBlanks(myStr, myLen):
 	myBlanks = ' ' * (myLen-len(myStr))
 	return myStr + myBlanks
