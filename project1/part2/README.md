@@ -5,8 +5,11 @@
 ## Usage:
 
 chmod u+x tcpserver.py
+
 chmod u+x tcpclient.py
+
 ./tcpserver.py
+
 ./tcpclient.py
 
 ### Sample output:
