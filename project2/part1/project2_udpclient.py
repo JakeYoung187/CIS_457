@@ -17,7 +17,7 @@ class filePacket(object):
 		self.last = last
 		self.ackSent = 0
 	def __str__(self):
-		return "Size: {}\n Index: {}\n Last: {}\n Data: {}".format(self.size, self.index, self.last, self.data)
+		return "Size: {}\n Index: {}\n Last: {}\n Data:\n {}".format(self.size, self.index, self.last, self.data)
 
 	def __repr__(self):
 		return str(self)
@@ -71,29 +71,36 @@ def main(argv):
 		packetList = []
 		while 1:
 			packetStr, server_addr = s.recvfrom(1024)
-			print packetStr, "\n\n"
 			x = filePacket()
-			for line in packetStr.split("\n"):
-				classVar = line.split(":")[0]
-				classVal = line.split(":")[1]
+			
+			'''
+			for item in packetStr.split(";"):
+				print item
+				classVar = item.split(":")[0]
+				classVal = item.split(":")[1]
+	
 				# could probably clean up with switch/cases
 				if classVar == "Size":
-					x.size = classVal
+					x.size = int(classVal)
 				elif classVar == "Index":
-					x.index = classVal
+					x.index = int(classVal)
 				elif classVar == "Last":
-					x.last = classVal
+					x.last = int(classVal)
 				elif classVar == "Data":
 					x.data = classVal
-
+			'''
 			packetList.append(x)
-		
+	
 			if x.last:
 				break
 
+		fullFileStr = ''
 		for packet in packetList:
-			print packet
+			
+			fullFileStr += packet.data
 
+		print fullFileStr
+	
 	s.close()
 
 if __name__ == "__main__":

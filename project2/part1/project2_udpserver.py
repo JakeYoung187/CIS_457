@@ -22,7 +22,7 @@ class filePacket(object):
 		self.ackRecv = 0
 
 	def __str__(self):
-		return "Size: {}\n Index: {}\n Last: {}\n Data: {}".format(self.size, self.index, self.last, self.data)
+		return "Size:{}\nIndex:{}\nLast:{}\nData:\n{}".format(self.size, self.index, self.last, self.data)
 
 	def __repr__(self):
 		return str(self)
@@ -65,9 +65,11 @@ def main(argv):
 				x = filePacket(packetDataSize, packetIndex, fileChunk, 0)
 				packetList.append(x)
 				packetIndex+=1
+		packetList[packetIndex-1].last = 1
 
 		for packet in packetList:
 			print "Sending packet {}".format(packet.index)
+			print len(str(packet))
 			s.sendto(str(packet), client_addr)
 
 	s.close()
