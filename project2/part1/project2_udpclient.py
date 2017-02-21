@@ -70,33 +70,22 @@ def main(argv):
 		s.sendto(myfilename, (host, port))
 		packetList = []
 		while 1:
-			packetStr, server_addr = s.recvfrom(1024)
+			packetStr, server_addr = s.recvfrom(69)
 			x = filePacket()
+			packetHeader = packetStr.split("\n")
+			x.size = int(packetHeader[0].split(":")[1])	
+			x.index = int(packetHeader[1].split(":")[1])	
+			x.last = int(packetHeader[2].split(":")[1])	
+			x.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
 			
-			'''
-			for item in packetStr.split(";"):
-				print item
-				classVar = item.split(":")[0]
-				classVal = item.split(":")[1]
-	
-				# could probably clean up with switch/cases
-				if classVar == "Size":
-					x.size = int(classVal)
-				elif classVar == "Index":
-					x.index = int(classVal)
-				elif classVar == "Last":
-					x.last = int(classVal)
-				elif classVar == "Data":
-					x.data = classVal
-			'''
 			packetList.append(x)
 	
+			# exit while when get last packet
 			if x.last:
 				break
 
 		fullFileStr = ''
 		for packet in packetList:
-			
 			fullFileStr += packet.data
 
 		print fullFileStr
