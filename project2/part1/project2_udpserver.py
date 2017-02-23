@@ -72,6 +72,10 @@ def main(argv):
 			print len(str(packet))
 			s.sendto(str(packet), client_addr)
 
+	while 1:
+		ack, client_addr = s.recvfrom(1024)
+		print "Received acknowledgment from client for packet {}".format(ack)
+
 	s.close()
 
 if __name__ == "__main__":

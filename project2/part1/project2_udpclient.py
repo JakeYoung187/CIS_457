@@ -87,6 +87,7 @@ def main(argv):
 		fullFileStr = ''
 		for packet in packetList:
 			fullFileStr += packet.data
+			s.sendto(str(packet.index), (host,port)) 
 
 		print fullFileStr
 	
