@@ -80,6 +80,8 @@ def main(argv):
 			
 			packetList.append(x)
 	
+			s.sendto(str(x.index), (host, port)) 
+			
 			# exit while when get last packet
 			if x.last:
 				break
@@ -87,7 +89,6 @@ def main(argv):
 		fullFileStr = ''
 		for packet in packetList:
 			fullFileStr += packet.data
-			s.sendto(str(packet.index), (host,port)) 
 
 		print fullFileStr
 	
