@@ -81,10 +81,12 @@ def main(argv):
 				# using mod 5 now may break everythign
 				packetList[int(ack) % windowSize].ackRecv = 1
 				print "Received acknowledgment from client for packet {}".format(ack)
+
+				print "packetList:", packetList	
 	
 				if (packetList[0].ackRecv != 0):
 					# we have ack from leftmost packet
-					packetList.pop()
+					packetList.pop(0)
 	
 					# move window and get new packet
 					fileChunk = myfile.read(packetDataSize)

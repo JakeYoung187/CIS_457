@@ -90,8 +90,10 @@ def main(argv):
 		for packet in packetList:
 			fullFileStr += packet.data
 
-		print fullFileStr
-	
+		mynewfile = open('new_' + myfilename, 'w')
+		mynewfile.write(fullFileStr)
+		print("\nFile written as: 'new_{}'".format(myfilename))
+
 	s.close()
 
 if __name__ == "__main__":
