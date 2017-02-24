@@ -79,8 +79,11 @@ def main(argv):
 			x.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
 			
 			packetList.append(x)
+			print "Received packet {}".format(str(x.index))
 	
 			s.sendto(str(x.index), (host, port)) 
+
+			print "Sending acknowledgement to server for packet {}".format(str(x.index))
 			
 			# exit while when get last packet
 			if x.last:
