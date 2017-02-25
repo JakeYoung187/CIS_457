@@ -1,0 +1,121 @@
+mininet tutorial
+
+username: mininet
+password: mininet
+
+ifconfig to get ip address
+
+ssh from other machine to vm to get access to GUI:
+ssh -Y mininet@172.16.132.137
+
+have full root access on vms, so we can install whatever we want
+
+java not installed, so we install it:
+
+sudo apt-get update
+sudo apt-get install default-jdk
+
+
+to exit vm:
+
+sudo shutdown -h now
+
+
+don't exit vm with x on vmwindow (causes ssh issues)
+
+
+when asked to continue with mininet session:
+
+ALWAYS SAY YES
+
+
+to run simulator (from ssh window, not vm window):
+
+sudo mn -x
+
+copy file form machine to vm
+
+
+scp udpclient.c mininet@172.16.132.137:
+
+
+run ping and watch packets
+
+
+--------------------------------------------------
+
+TEST LOSS ON SWITCH:
+first time:
+tc qdisc add dev s1-eth1 root netem loss 30%
+
+after first:
+tc qdisc change dev s1-eth1 root netem loss 60%
+
+(if you do right thing, command completely silent)
+
+ifconfig on switch (has several connections)
+
+
+only simulate loss on outgoing packets (not incoming packets)
+
+to check both directions, run also:
+
+tc qdisc add dev s1-eth2 root netem loss 30%
+tc qdisc change dev s1-eth2 root netem loss 60%
+
+
+*** for project ***
+one direction loses data packets
+one direction loses acknowledgement packets
+
+
+--------------------------------------------------
+
+TEST DUPLICATE ON SWITCH:
+
+tc qdisc change dev s1-eth1 root netem duplicate 60%
+
+tc qdisc change dev s1-eth2 root netem duplicate 60%
+
+doesn't test both LOSS and DUPLICATE only one
+
+
+--------------------------------------------------
+
+TEST BOTH LOSS AND DUPLICATE ON SWITCH:
+
+tc qdisc change dev s1-eth1 root netem duplicate 60% loss 50%
+
+tc qdisc change dev s1-eth2 root netem duplicate 60% loss 50%
+
+demo: at least 20% (people show off with 80/90%)
+
+--------------------------------------------------
+
+TEST REORDER ON SWITCH:
+
+tc qdisc change dev s1-eth1 root netem delay 2s reorder 20%
+
+tc qdisc change dev s1-eth2 root netem delay 2s reorder 20%
+
+** overrides previous commands **
+
+--------------------------------------------------
+
+TEST CORRUPTION:
+
+**Testing corruption needs to be done in a different way**
+
+1) Download packetcorrupt.py from website
+
+2) scp packetcorrupt.py mininet@172.16.132.137:
+
+3) mv packetcorrupt.py pox/ext
+
+4) sudo mn -x --controller=remote
+
+5) on controller: c0 run ./pox.py packetcorrupt
+
+6) on host: h2 run ping 10.0.0.1
+
+** corruption: 20% of packets have single bit flipped **
