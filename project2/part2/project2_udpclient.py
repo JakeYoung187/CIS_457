@@ -8,7 +8,7 @@ Details: UDP File Transfer
 
 Client program
 '''
-import socket, os, sys, re
+import socket, os, sys, re, time
 class filePacket(object):
 	def __init__(self, size=None, index=None, data=None, last=None):
 		self.size = size
@@ -60,16 +60,23 @@ def main(argv):
 		port = int(port)
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+	s.settimeout(3.0)
+
 	# only one file for now
 	#while 1:
 	myfilename = raw_input('\nEnter filename to be received from server: ')
 	if myfilename.lower() == "quit":
 		s.close()	
 		sys.exit(-1)
-	else:
-		s.sendto(myfilename, (host, port))
-		packetList = []
-		while 1:
+		
+	s.sendto(myfilename, (host, port))
+	packetList = []
+	
+	testVar = 0
+
+	while 1:
+		try:
 			packetStr, server_addr = s.recvfrom(69)
 			x = filePacket()
 			packetHeader = packetStr.split("\n")
@@ -78,24 +85,28 @@ def main(argv):
 			x.last = int(packetHeader[2].split(":")[1])	
 			x.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
 			
+			testVar +=1
+
 			packetList.append(x)
 			print "Received packet {}".format(str(x.index))
-	
-			s.sendto(str(x.index), (host, port)) 
 
+			s.sendto(str(x.index), (host, port)) 
 			print "Sending acknowledgement to server for packet {}".format(str(x.index))
-			
+
 			# exit while when get last packet
 			if x.last:
 				break
+		except:
+			print "Timeout error"
+			#sys.exit(-1)
 
-		fullFileStr = ''
-		for packet in packetList:
-			fullFileStr += packet.data
+	fullFileStr = ''
+	for packet in packetList:
+		fullFileStr += packet.data
 
-		mynewfile = open('new_' + myfilename, 'w')
-		mynewfile.write(fullFileStr)
-		print("\nFile written as: 'new_{}'".format(myfilename))
+	mynewfile = open('new_' + myfilename, 'w')
+	mynewfile.write(fullFileStr)
+	print("\nFile written as: 'new_{}'".format(myfilename))
 
 	s.close()
 
