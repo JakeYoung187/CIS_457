@@ -90,7 +90,11 @@ def main(argv):
 				print "Received acknowledgment from client for packet {}".format(ack)
 				ackList.append(int(ack))
 				
+				
 			except:
+				
+				if highestPacketID == numberOfPackets:
+					break
 				
 				#check ack list
 				ackSortedList = sorted(ackList)
@@ -131,14 +135,9 @@ def main(argv):
 				for packet in currentWindow:
 					print "Sending packet {}".format(packet.index)
 					s.sendto(str(packet), client_addr)
-				
-				if highestPacketID == numberOfPackets:
-					break
 
 				# reset ack list	
 				ackList = []
-
-			
 
 	s.close()
 
