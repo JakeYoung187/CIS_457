@@ -64,6 +64,8 @@ def main(argv):
 	numberOfPackets = int(math.ceil(float(fileSize) / float(packetDataSize)))
 	currentWindow = []
 	highestPacketID = 0
+	leftMostPacket = 0
+
 
 	with open(filename, 'r') as myfile:
 		
@@ -89,7 +91,7 @@ def main(argv):
 				ack, client_addr = s.recvfrom(1024)
 				print "Received acknowledgment from client for packet {}".format(ack)
 				ackList.append(int(ack))
-				
+					
 				
 			except:
 				
@@ -99,38 +101,49 @@ def main(argv):
 				#check ack list
 				ackSortedList = sorted(ackList)
 				numConsAck = 0
-				print "ackSortedList:", ackSortedList
-				for i in range(len(ackSortedList)-1):
-					if ackSortedList[i+1] - ackSortedList[i] == 1:
-						numConsAck +=1
+				#print "ackSortedList:", ackSortedList
+				for i in range(len(ackSortedList)):
+					print "i:", i
+					print "leftMostPacket", leftMostPacket
+					
+					if leftMostPacket == ackSortedList[i]:
+						leftMostPacket +=1
+						if i != len(ackSortedList)-1:
+							if ackSortedList[i+1] - ackSortedList[i] == 1:
+								numConsAck +=1
+					else:
+						break
 
-				print numConsAck+1
-				print numberOfPackets
-				print highestPacketID
+				print "numConsAck:", numConsAck
+				print "numberOfPackets", numberOfPackets
+				print "highestPacketID", highestPacketID
+
 	
 				# take min of number of consecutive acknowledgments and num packets left
-				for i in range(min(numConsAck+1, numberOfPackets - highestPacketID)):
-					
-					print "whyyyyyyy"
-					# print current window			
-					windowString = ''
-					for packet in currentWindow:
-						windowString += " " + str(packet.index) + " "
+				if numConsAck != 0:
+					for i in range(min(numConsAck+1, numberOfPackets - highestPacketID)):
+				
+						print "in here"
 			
-					print windowString
-	
-					currentWindow.pop(0)
+						# print current window			
+						windowString = ''
+						for packet in currentWindow:
+							windowString += " " + str(packet.index) + " "
+				
+						print "Current Window:", windowString
+		
+						currentWindow.pop(0)
 
-					fileChunk = myfile.read(packetDataSize)
-					
-					packet = filePacket(packetDataSize, highestPacketID, fileChunk, 0)
-					
-					if packet.index == numberOfPackets:
-						packet.last = 1
-					
-					currentWindow.append(packet)
-					highestPacketID += 1
-					print highestPacketID, numberOfPackets		
+						fileChunk = myfile.read(packetDataSize)
+						
+						packet = filePacket(packetDataSize, highestPacketID, fileChunk, 0)
+						
+						if packet.index == numberOfPackets:
+							packet.last = 1
+						
+						currentWindow.append(packet)
+						highestPacketID += 1
+						print highestPacketID, numberOfPackets		
 				
 				for packet in currentWindow:
 					print "Sending packet {}".format(packet.index)

@@ -84,15 +84,24 @@ def main(argv):
 			x.index = int(packetHeader[1].split(":")[1])	
 			x.last = int(packetHeader[2].split(":")[1])	
 			x.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
-			
-			testVar +=1
 
 			packetList.append(x)
 			print "Received packet {}".format(str(x.index))
 
-			s.sendto(str(x.index), (host, port)) 
-			print "Sending acknowledgement to server for packet {}".format(str(x.index))
-
+			if x.index != 2:
+			#if 1:
+				print "if", testVar
+				s.sendto(str(x.index), (host, port)) 
+				print "Sending acknowledgement to server for packet {}".format(str(x.index))
+			#'''
+			elif x.index == 2 and testVar < 3:
+				print "elif 1", testVar
+				testVar +=1
+			elif x.index == 2 and testVar >= 3:
+				print "elif 2", testVar
+				s.sendto(str(x.index), (host, port)) 
+				print "Sending acknowledgement to server for packet {}".format(str(x.index))
+			#'''
 			# exit while when get last packet
 			if x.last:
 				break
