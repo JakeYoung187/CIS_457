@@ -105,9 +105,12 @@ def main(argv):
 			# exit while when get last packet
 			if x.last:
 				break
-		except:
+		except socket.timeout:
 			print "Timeout error"
 			#sys.exit(-1)
+
+		except KeyboardInterrupt:
+			sys.exit(-1)
 
 	fullFileStr = ''
 	for packet in packetList:
