@@ -16,7 +16,7 @@ class Client(object):
 		self.port = port
 		self.server_addr = (self.server_host, self.port)
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		#self.socket.settimeout(5)
+		self.socket.settimeout(5)
 		self.filename = ''
 		self.packetSize = 64
 		self.fileStr = ''
@@ -42,8 +42,16 @@ class Client(object):
 		if self.filename.lower() == "quit":
 			s.close()	
 			sys.exit(-1)
-			
+		print "Sent original file request"			
 		self.socket.sendto(self.filename, self.server_addr)
+		while 1:
+			try:
+				fq_ack, self.server_addr = self.socket.recvfrom(1024)
+				print "Received file request ack"
+				break
+			except socket.timeout:
+				print "Resent file request"			
+				self.socket.sendto(self.filename, self.server_addr)
 
 	def parsePacket(self, packetStr):
 		myPacket = self.filePacket()
@@ -65,38 +73,24 @@ class Client(object):
 
 	def receiveFilePackets(self):
 
-		testVar = 0
-
 		while 1:
 			try:
-				
 				raw_packet, self.server_addr = self.socket.recvfrom(self.packetSize)
 				curr_packet = self.parsePacket(raw_packet)
 				print "Received packet {}".format(str(curr_packet.index))
 				if curr_packet.index not in self.currentWindow:
 					self.currentWindow[curr_packet.index] = curr_packet
 					self.numPackets += 1
-				'''
 				self.socket.sendto(str(curr_packet.index), self.server_addr)
 				print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
-				'''
-				if curr_packet.index != 2 or testVar >= 3:
-					self.socket.sendto(str(curr_packet.index), self.server_addr)
-					print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
-				elif curr_packet.index == 2 and testVar < 3:
-					print "Dropping packet 2"
-					testVar +=1
-
-				#if curr_packet.last:
-				#	break
 			
-			#except self.timeout:
-			#	print "Timeout error"
+			except socket.timeout:
+				print "No more packets from server..."
+				break
 			except KeyboardInterrupt:
 				self.writeFile()
 				print "Come back again soon..."
 				break
-				#sys.exit(-1)
 
 #Regular Expression check for valid host name
 #http://stackoverflow.com/questions/2532053/validate-a-hostname-string
@@ -146,7 +140,7 @@ def main(argv):
 
 	c.receiveFilePackets()
 
-	print "hi client"
+	print "Goodbye from client!"
 
 if __name__ == "__main__":
 	main(sys.argv)

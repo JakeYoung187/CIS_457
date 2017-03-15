@@ -45,6 +45,11 @@ class Server(object):
 		while 1:
 			try:
 				self.filename, self.client_addr = self.socket.recvfrom(1024)
+				if self.filename in os.listdir("."):
+					print ("\nSent ack for request of file: {}".format(self.filename))
+					self.socket.sendto("File request received", self.client_addr)
+					self.fileSize = os.path.getsize(self.filename)
+					self.setNumberOfPackets()
 				break
 			except socket.timeout:
 				print "Socket timeout...please request a file."
@@ -52,13 +57,6 @@ class Server(object):
 				print "\nCome again soon..."
 				sys.exit(-1)
 
-		if self.filename in os.listdir("."):
-			print ("\nFile request received from client for: {}".format(self.filename))
-	
-			self.fileSize = os.path.getsize(self.filename)
-			#if self.fileSize > 512:
-			#	self.packetDataSize = 512
-			self.setNumberOfPackets()
 	
 	def setNumberOfPackets(self):
 		self.numPackets = int(math.ceil(
@@ -70,8 +68,7 @@ class Server(object):
 			fileChunk = myfile.read(self.packetDataSize)
 			curr_packet = self.filePacket(i, fileChunk, 0)
 			self.currentWindow[i] = curr_packet
-			
-			print "Sending packet {} of size {}".format(curr_packet.index, len(str(curr_packet)))
+			print "Sending packet {}".format(curr_packet.index)
 			self.socket.sendto(str(curr_packet), self.client_addr)
 
 	def nextServe(self, myfile):
@@ -92,13 +89,15 @@ class Server(object):
 				else:
 					curr_packet = self.currentWindow[i]		
 		
-				#print "Sending packet {} of size {}".format(curr_packet.index, len(str(curr_packet)))
 				print "Sending packet {}".format(curr_packet.index)
 				self.socket.sendto(str(curr_packet), self.client_addr)
 			
 	def getAcks(self):
 		# wait for acks for n sec
-		self.socket.settimeout(0.001)
+		# need short time for large files (jpgs)
+		#self.socket.settimeout(0.001)
+		# need longer time for reorder delay
+		self.socket.settimeout(3)
 		while 1:
 			try:
 				ack, addr = self.socket.recvfrom(10)
@@ -134,8 +133,6 @@ class Server(object):
 				break
 			else:
 				self.nextServe(fp)
-
-			#print "NumAcks: {}, NumPacks: {}".format(self.numAcksRecv, self.numPackets)
 	
 def getPort(argsFromCommandLine):
 	
@@ -165,7 +162,7 @@ def main(argv):
 
 	s.serveFileRequests()
 
-	print "hi server"
+	print "Goodbye from server!"
 
 if __name__ == "__main__":
     main(sys.argv)
