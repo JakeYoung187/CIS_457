@@ -104,9 +104,12 @@ class Client(object):
 		packet.clientRecvCS = self.getCheckSum(str(packet))
 	
 		corr = False
-		if int(packet.serverSentCS, 16) - int(packet.clientRecvCS, 16) != 0:
-			corr = True
-		
+		try:
+			if int(packet.serverSentCS, 16) - int(packet.clientRecvCS, 16) != 0:
+				corr = True
+		except:
+			corr = True	
+	
 		return corr
 
 	# write currentWindow out to M
@@ -126,6 +129,13 @@ class Client(object):
 		while 1:
 			try:
 				raw_packet, self.server_addr = self.socket.recvfrom(self.packetSize)
+				
+				if "all done" in raw_packet:
+					print "\nNo more packets from server..."
+					self.writeFile()
+					break
+
+				# receiving data, not file request
 				if "request" not in raw_packet:
 					curr_packet = self.parsePacket(raw_packet)
 					print "Received packet {}".format(str(curr_packet.index))
@@ -143,11 +153,13 @@ class Client(object):
 						ackToSend = ackIndex + ":" + str(ackCS)
 						self.socket.sendto(ackToSend, self.server_addr)
 						print "Sent acknowledgment for packet {}".format(ackIndex)
-				
+					
 			except socket.timeout:
-				print "\nNo more packets from server..."
-				self.writeFile()
-				break
+				#print "\nNo more packets from server..."
+				#self.writeFile()
+				#break
+				print "Socket timeout...server is taking awhile..."			
+
 			except KeyboardInterrupt:
 				print "Come back again soon..."
 				break

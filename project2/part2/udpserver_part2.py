@@ -118,12 +118,15 @@ class Server(object):
 					self.socket.sendto(str(curr_packet), self.client_addr)
 		
 	def checkForAckCorruption(self, myStr, myCS):
-		myAckCS = int(self.getCheckSum(myStr), 16)
-		myBinCS = int(myCS, 16)
-	
-		ackCor = False
-		# difference between checksums should be 0
-		if (myAckCS - myBinCS) != 0:
+		try:
+			myAckCS = int(self.getCheckSum(myStr), 16)
+			myBinCS = int(myCS, 16)
+		
+			ackCor = False
+			# difference between checksums should be 0
+			if (myAckCS - myBinCS) != 0:
+				ackCor = True
+		except:
 			ackCor = True
 
 		return ackCor
@@ -137,14 +140,28 @@ class Server(object):
 		while 1:
 			try:
 				ack, addr = self.socket.recvfrom(10)
-				# check to make sure not file request
-				ackParts = ack.split(":")
-				ackIndex = ackParts[0]
-				ackCS = ackParts[1]
-				if ackIndex.isdigit():
-					print "Received acknowledgment for packet {}".format(ackIndex)
-					self.currentWindow[int(ackIndex)].ackRecv = 1		
-					time.sleep(0.0001)
+				if ":" not in ack:
+					print "Acknowledgment for unknown packet was corrupted..."
+					break
+				elif ":" in ack:
+					ackParts = ack.split(":")
+					ackIndex = ackParts[0]
+					ackCS = ackParts[1]
+
+					if not ackIndex.isdigit():
+						print "Acknowledgment for unknown packet was corrupted..."
+						break
+						
+					elif ackIndex.isdigit():
+						# check for corruption and don't add to ack recv
+						if self.checkForAckCorruption(str(ackIndex), ackCS):
+							print "Acknowledgment for packet {} was corrupted...".format(ackIndex)
+							break				
+						else:
+							print "Received acknowledgment for packet {}".format(ackIndex)
+							self.currentWindow[int(ackIndex)].ackRecv = 1		
+							time.sleep(0.0001)
+								
 			except socket.timeout:
 				#print "Ack timeout"
 				break
@@ -178,6 +195,7 @@ class Server(object):
 			self.slideWindow()
 			if self.numAcksRecv >= self.numPackets:
 				print "\nAll acks received from client..."
+				self.socket.sendto("Hooray, we're all done!", self.client_addr)
 				break
 			else:
 				self.sendPackets(fp)
