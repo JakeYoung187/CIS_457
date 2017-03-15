@@ -31,12 +31,12 @@ chmod u+x tcpclient.py
 
 ### Sample output:
 
-[Sliding Window and Ack/Data Loss](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataLoss.png)
+[Sliding Window and Ack/Data Loss](https://github.com/adamtwig/CIS_457/blob/master/project2/part2/screenshots/CIS457_Project2_ackDataLoss.png)
 
-[Ack/Data Reordering](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataReordering.png)
+[Ack/Data Reordering](https://github.com/adamtwig/CIS_457/blob/master/project2/part2/screenshots/CIS457_Project2_ackDataReordering.png)
 
-[Ack/Data Duplication](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataDuplication.png)
+[Ack/Data Duplication](https://github.com/adamtwig/CIS_457/blob/master/project2/part2/screenshots/CIS457_Project2_ackDataDuplication.png)
 
-[Ack Corruption](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackCorruption.png)
+[Ack Corruption](https://github.com/adamtwig/CIS_457/blob/master/project2/part2/screenshots/CIS457_Project2_ackCorruption.png)
 
-[Data Corruption](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_dataCorruption.png)
+[Data Corruption](https://github.com/adamtwig/CIS_457/blob/master/project2/part2/screenshots/CIS457_Project2_dataCorruption.png)
