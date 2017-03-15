@@ -72,8 +72,6 @@ class Server(object):
 			self.socket.sendto(str(curr_packet), self.client_addr)
 
 	def nextServe(self, myfile):
-		
-		#print "Leftmost packet: {}".format(self.leftMostPacket)
 
 		for i in range(self.leftMostPacket, self.leftMostPacket+self.windowSize):
 			# if we haven't already read this fileChunk
@@ -86,24 +84,29 @@ class Server(object):
 						curr_packet.last = 1
 					self.currentWindow[i] = curr_packet
 						
+				# else don't re-read file and its already in M
 				else:
 					curr_packet = self.currentWindow[i]		
 		
-				print "Sending packet {}".format(curr_packet.index)
-				self.socket.sendto(str(curr_packet), self.client_addr)
+				# if we haven't already received an ack for this packet
+				if curr_packet.ackRecv == 0:
+					print "Sending packet {}".format(curr_packet.index)
+					self.socket.sendto(str(curr_packet), self.client_addr)
 			
 	def getAcks(self):
 		# wait for acks for n sec
 		# need short time for large files (jpgs)
-		self.socket.settimeout(0.001)
+		#self.socket.settimeout(0.001)
 		# need longer time for reorder delay
-		#self.socket.settimeout(3)
+		self.socket.settimeout(5)
 		while 1:
 			try:
 				ack, addr = self.socket.recvfrom(10)
-				print "Received acknowledgment for packet {}".format(ack)
-				self.currentWindow[int(ack)].ackRecv = 1		
-				time.sleep(0.0001)
+				# check to make sure not file request
+				if ack.isdigit():
+					print "Received acknowledgment for packet {}".format(ack)
+					self.currentWindow[int(ack)].ackRecv = 1		
+					time.sleep(0.0001)
 			except socket.timeout:
 				#print "Ack timeout"
 				break

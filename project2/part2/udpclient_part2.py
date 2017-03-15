@@ -47,9 +47,9 @@ class Client(object):
 		while 1:
 			try:
 				fq_ack, self.server_addr = self.socket.recvfrom(1024)
-				if "HEADER" not in fq_ack:
-					print "Received file request ack"
-					break
+				#if "HEADER" not in fq_ack:
+				#	print "Received file request ack"
+				break
 			except socket.timeout:
 				print "Resent file request"			
 				self.socket.sendto(self.filename, self.server_addr)
@@ -79,15 +79,14 @@ class Client(object):
 		while 1:
 			try:
 				raw_packet, self.server_addr = self.socket.recvfrom(self.packetSize)
-				if "request" in raw_packet:
-					break
-				curr_packet = self.parsePacket(raw_packet)
-				print "Received packet {}".format(str(curr_packet.index))
-				if curr_packet.index not in self.currentWindow:
-					self.currentWindow[curr_packet.index] = curr_packet
-					self.numPackets += 1
-				self.socket.sendto(str(curr_packet.index), self.server_addr)
-				print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
+				if "request" not in raw_packet:
+					curr_packet = self.parsePacket(raw_packet)
+					print "Received packet {}".format(str(curr_packet.index))
+					if curr_packet.index not in self.currentWindow:
+						self.currentWindow[curr_packet.index] = curr_packet
+						self.numPackets += 1
+					self.socket.sendto(str(curr_packet.index), self.server_addr)
+					print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
 			
 			except socket.timeout:
 				print "No more packets from server..."
