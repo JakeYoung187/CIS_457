@@ -1,33 +1,34 @@
-# CIS 457 Project 1: TCP File Transfer
+# CIS 457 Project 2: UDP Relability File Transfer
 
-[Project Description](http://www.cis.gvsu.edu/~kalafuta/cis457/w17/labs/457prj1.html)
+[Project Description](http://www.cis.gvsu.edu/~kalafuta/cis457/w17/labs/457prj2.html)
 
 ## Usage:
 
-chmod u+x tcpserver.py
+chmod u+x udpclient_part2.py
 
-chmod u+x tcpclient.py
+chmod u+x udpserver_part2.py
 
 ### Option 1:
-./tcpserver.py
+./udpclient_part2.py
 
-./tcpclient.py
+./udpserver_part2.py
 
 #### Then provide host, port, filename as raw input
 
 ### Option 2:
+./udpclient_part2.py hostName portNum
 
-./tcpserver.py portNum
-
-./tcpclient.py hostName portNum
+./udpserver_part2.py portNum
 
 #### Then provide filename as raw input
 
 ### Example:
+./udpclient_part2.py 127.0.0.1 1234
 
-./tcpserver.py 1234
+./udpserver_part2.py 1234
 
-./tcpclient.py 127.0.0.1 1234
+
+#### For specifics on simulating relability conditions (loss, reordering, duplications, and corruption), please see the project description.
 
 ### Sample output:
 
