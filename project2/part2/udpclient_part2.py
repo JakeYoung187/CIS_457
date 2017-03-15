@@ -129,6 +129,9 @@ class Client(object):
 							self.numPackets += 1
 						self.socket.sendto(str(curr_packet.index), self.server_addr)
 						print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
+					
+					print "Server sent checksum: {}, Client received checksum: {}".format(
+						curr_packet.serverSentCS, curr_packet.clientRecvCS)
 				
 			except socket.timeout:
 				print "\nNo more packets from server..."

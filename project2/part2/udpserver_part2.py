@@ -101,16 +101,16 @@ class Server(object):
 					myfile.seek(i*self.packetDataSize)
 					fileChunk = myfile.read(self.packetDataSize)
 					curr_packet = self.filePacket(i, fileChunk, '0x00')
+					#print curr_packet	
+					csHex = self.getCheckSum(curr_packet)
+					curr_packet.checksum = str(csHex)
+					#print curr_packet	
 					self.currentWindow[i] = curr_packet
 						
 				# else don't re-read file and its already in M
 				else:
 					curr_packet = self.currentWindow[i]		
 	
-				#print curr_packet	
-				csHex = self.getCheckSum(curr_packet)
-				curr_packet.checksum = str(csHex)
-				#print curr_packet	
 
 				# if we haven't already received an ack for this packet
 				if curr_packet.ackRecv == 0:
