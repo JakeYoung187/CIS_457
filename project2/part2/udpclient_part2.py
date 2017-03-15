@@ -47,8 +47,9 @@ class Client(object):
 		while 1:
 			try:
 				fq_ack, self.server_addr = self.socket.recvfrom(1024)
-				print "Received file request ack"
-				break
+				if "HEADER" not in fq_ack:
+					print "Received file request ack"
+					break
 			except socket.timeout:
 				print "Resent file request"			
 				self.socket.sendto(self.filename, self.server_addr)
@@ -72,10 +73,14 @@ class Client(object):
 		print("\nFile written as: 'new_{}'".format(self.filename))	
 
 	def receiveFilePackets(self):
+		
+		self.socket.settimeout(10)
 
 		while 1:
 			try:
 				raw_packet, self.server_addr = self.socket.recvfrom(self.packetSize)
+				if "request" in raw_packet:
+					break
 				curr_packet = self.parsePacket(raw_packet)
 				print "Received packet {}".format(str(curr_packet.index))
 				if curr_packet.index not in self.currentWindow:
@@ -86,9 +91,9 @@ class Client(object):
 			
 			except socket.timeout:
 				print "No more packets from server..."
+				self.writeFile()
 				break
 			except KeyboardInterrupt:
-				self.writeFile()
 				print "Come back again soon..."
 				break
 

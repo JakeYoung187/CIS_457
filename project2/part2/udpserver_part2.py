@@ -95,9 +95,9 @@ class Server(object):
 	def getAcks(self):
 		# wait for acks for n sec
 		# need short time for large files (jpgs)
-		#self.socket.settimeout(0.001)
+		self.socket.settimeout(0.001)
 		# need longer time for reorder delay
-		self.socket.settimeout(3)
+		#self.socket.settimeout(3)
 		while 1:
 			try:
 				ack, addr = self.socket.recvfrom(10)
