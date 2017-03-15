@@ -4,12 +4,22 @@
 Developer: Adam Terwilliger, Ellysa Stanton
 Version: March 15, 2017
 Purpose: CIS 457 Project 2 Part 2
-Details: UDP File Transfer
+		 UDP Reliability File Transfer
+Details: Areas of relability include:
+		  - Loss
+		  - Duplication
+		  - Reordering
+		  - Corruption
 
 Server program
 '''
 import socket, os, sys, math, time
 
+'''
+Server class is a UDP socket with numerous fields
+that help to implement a reliable file transfer
+using the sliding window protocol. 
+'''
 class Server(object):
 	def __init__(self, port):
 		self.port = port
@@ -26,6 +36,10 @@ class Server(object):
 		self.leftMostPacket = 0
 		self.numAcksRecv = 0
 	
+	'''
+    filePacket class is an object that is 
+    transferred between server and client.
+    '''
 	class filePacket(object):
 		def __init__(self, index, data, checksum):
 			self.index = index
@@ -39,6 +53,10 @@ class Server(object):
 		def __repr__(self):
 			return str(self)	
 
+	'''
+	getFilename method receives file request from client and 
+		verifies the file exists in its local directory
+	'''
 	def getFilename(self):
 		
 		print "Waiting for client to request a file..."	
@@ -59,15 +77,25 @@ class Server(object):
 				print "\nCome again soon..."
 				sys.exit(-1)
 
-	
+	'''
+	setNumberOfPackets is a helper method to better iterate
+		over the file in chunks
+	'''
 	def setNumberOfPackets(self):
 		self.numPackets = int(math.ceil(
 			float(self.fileSize) / float(self.packetDataSize)))
 
+
+	'''
+    getCheckSum method is abstract take any string of bytes and
+        calculate its checksum
+    '''
 	def getCheckSum(self, myStr):
 
+		# create a list of binary strings from bytes
 		binPacketList = map(bin, bytearray(myStr))
 		
+		# sum all of the binary numbers in list
 		result = 0
 		for binByte in binPacketList:
 			intBinByte = int(binByte, 2)
@@ -77,10 +105,12 @@ class Server(object):
 				result -= 256
 				result += 1
 
+		# add leading zeroes to binary num
 		binResult = bin(result)[2:]
 		while(len(binResult) < 8):
 			binResult = ('0' + binResult)
 		
+		# take one's complement
 		onesComp = ''
 		for bit in binResult:
 			if bit == '0':
@@ -88,11 +118,17 @@ class Server(object):
 			elif bit == '1':
 				onesComp += '0'
 
+		# convert to binary and then hex
 		finalByte = int(onesComp, 2)
 		hexValue = hex(finalByte)		
 
 		return hexValue
 	
+	'''
+	sendPackets is the main method that is called after
+		acknowledgment period has passed and the window
+		has been moved
+	'''
 	def sendPackets(self, myfile):
 
 		for i in range(self.leftMostPacket, self.leftMostPacket+self.windowSize):
@@ -118,7 +154,11 @@ class Server(object):
 				if curr_packet.ackRecv == 0:
 					print "Sending packet {}".format(curr_packet.index)
 					self.socket.sendto(str(curr_packet), self.client_addr)
-		
+	
+	'''
+	checkForAckCorruption looks at checksums in the acknowledgement
+		from the client to the server that it received a packet
+	'''
 	def checkForAckCorruption(self, myStr, myCS):
 		try:
 			myAckCS = int(self.getCheckSum(myStr), 16)
@@ -133,6 +173,12 @@ class Server(object):
 
 		return ackCor
 	
+	'''
+	getAcks method loops for a set amount of time
+		giving the client a chance to acknowledge
+		any packets it received, while also checking
+		for any possible corruption
+	'''
 	def getAcks(self):
 		# wait for acks for n sec
 		# need short time for large files (jpgs)
@@ -171,6 +217,10 @@ class Server(object):
 				print "\nCome again soon..."
 				sys.exit(-1)
 	
+	'''
+	slideWindow utilizes the leftMostPacket acknowledged
+		to figure out how far to slide the window
+	'''
 	def slideWindow(self):
 
 		slideSize = 0
@@ -182,6 +232,12 @@ class Server(object):
 				self.numAcksRecv +=1
 				slideSize +=1
 
+	'''
+	serveFileRequests is the main method that brings
+		together all of the other methods in the Server
+		class to send packets and get acknowledgments 
+		from the client
+	'''
 	def serveFileRequests(self):	
 
 		# file pointer to requested file
@@ -201,7 +257,10 @@ class Server(object):
 				break
 			else:
 				self.sendPackets(fp)
-	
+
+'''
+getPort is a helper method for error handling of raw input for port nums
+'''	
 def getPort(argsFromCommandLine):
 	
 	if len(argsFromCommandLine) == 2:
@@ -223,13 +282,9 @@ def getPort(argsFromCommandLine):
 def main(argv):
 
 	port = getPort(argv)
-
 	s = Server(port)
-
 	s.getFilename()
-
 	s.serveFileRequests()
-
 	print "Goodbye from server!"
 
 if __name__ == "__main__":

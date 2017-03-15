@@ -2,14 +2,24 @@
 
 '''
 Developer: Adam Terwilliger, Ellysa Stanton
-Version: February 27, 2017
+Version: March 15, 2017
 Purpose: CIS 457 Project 2 Part 2
-Details: UDP File Transfer
+         UDP Reliability File Transfer
+Details: Areas of relability include:
+          - Loss
+          - Duplication
+          - Reordering
+          - Corruption
 
 Client program
 '''
 import socket, os, sys, math, time
 
+'''
+Client class is a UDP socket with numerous fields
+that help to implement a reliable file transfer
+using the sliding window protocol. 
+'''
 class Client(object):
 	def __init__(self, server_host, port):
 		self.server_host = server_host
@@ -24,6 +34,10 @@ class Client(object):
 		self.currentWindow = {}
 		self.numPackets = 0
 
+	'''
+	filePacket class is an object that is 
+	transferred between server and client.
+	'''
 	class filePacket(object):
 		def __init__(self, index=None, data=None, serverSentCS=None):
 			self.index = index
@@ -38,7 +52,10 @@ class Client(object):
 		def __repr__(self):
 			return str(self)
 
-
+	'''
+	requestFile method is the first step in the process for which 
+		 the client to request a file from server.
+	'''
 	def requestFile(self):
 		self.filename = raw_input('\nEnter filename to be received from server: ')
 		if self.filename.lower() == "quit":
@@ -46,16 +63,21 @@ class Client(object):
 			sys.exit(-1)
 		print "Sent original file request"			
 		self.socket.sendto(self.filename, self.server_addr)
+		
+		# if server doesn't acknowledge file request, send again
 		while 1:
 			try:
+				# if there is a successful ack, start recv packets
 				fq_ack, self.server_addr = self.socket.recvfrom(1024)
-				#if "HEADER" not in fq_ack:
-				#	print "Received file request ack"
 				break
 			except socket.timeout:
 				print "Resent file request"			
 				self.socket.sendto(self.filename, self.server_addr)
 
+	'''
+	parsePacket method is a helper method to get meaningful info
+		out of the header and break off data for file writing.
+	'''
 	def parsePacket(self, packetStr):
 		try:
 			myPacket = self.filePacket()
@@ -68,10 +90,16 @@ class Client(object):
 
 		return myPacket		
 
+	'''
+	getCheckSum method is abstract take any string of bytes and
+		calculate its checksum
+	'''
 	def getCheckSum(self, myStr):
 
-		binPacketList = map(bin, bytearray(str(myStr)))
+		# create a list of binary strings from bytes
+		binPacketList = map(bin, bytearray(myStr))
 
+		# sum all of the binary numbers in list
 		result = 0
 		for binByte in binPacketList:
 			intBinByte = int(binByte, 2)
@@ -81,10 +109,12 @@ class Client(object):
 				result -= 256
 				result += 1
 
+		# add leading zeroes to binary num
 		binResult = bin(result)[2:]
 		while(len(binResult) < 8):
 			binResult = ('0' + binResult)
 
+		# take one's complement
 		onesComp = ''
 		for bit in binResult:
 			if bit == '0':
@@ -92,13 +122,16 @@ class Client(object):
 			elif bit == '1':
 				onesComp += '0'
 
+		# convert to binary and then hex
 		finalByte = int(onesComp, 2)
 		hexValue = hex(finalByte)
 
 		return hexValue
 
-	# compare checksums for corruption
-	# equivalent to result all 1s
+	'''
+	compare checksums for corruption
+	 	equivalent to result all 1s
+	'''
 	def checkCorruption(self, packet):
 
 		packet.clientRecvCS = self.getCheckSum(str(packet))
@@ -112,7 +145,7 @@ class Client(object):
 	
 		return corr
 
-	# write currentWindow out to M
+	''' write currentWindow out to M '''
 	def writeFile(self):
 		fullFileStr = ''
 		for i in range(self.numPackets):
@@ -122,8 +155,13 @@ class Client(object):
 		mynewfile.write(fullFileStr)
 		print("File written as: 'new_{}'".format(self.filename))	
 
+	''' 
+	main class method that constantly loops
+		receiving all packets in file
+	'''
 	def receiveFilePackets(self):
 		
+		# timeout if server takes too long to respond
 		self.socket.settimeout(10)
 
 		while 1:
@@ -140,24 +178,24 @@ class Client(object):
 					curr_packet = self.parsePacket(raw_packet)
 					print "Received packet {}".format(str(curr_packet.index))
 
+					# for every packet, check if it has been corrupted
 					if curr_packet.data == 'Corrupted' or self.checkCorruption(curr_packet):
 						print "Corruption in packet {}, no ack sent".format(str(curr_packet.index))	
 						print "Server sent checksum: {}, Client received checksum: {}".format(
 							curr_packet.serverSentCS, curr_packet.clientRecvCS)
 					else:
+						# if we haven't seen this packet yet, add to our window
 						if curr_packet.index not in self.currentWindow:
 							self.currentWindow[curr_packet.index] = curr_packet
 							self.numPackets += 1
 						ackIndex = str(curr_packet.index)
 						ackCS = self.getCheckSum(ackIndex)
 						ackToSend = ackIndex + ":" + str(ackCS)
+						# send acknowledgment to server with index of packet and checksum
 						self.socket.sendto(ackToSend, self.server_addr)
 						print "Sent acknowledgment for packet {}".format(ackIndex)
 					
 			except socket.timeout:
-				#print "\nNo more packets from server..."
-				#self.writeFile()
-				#break
 				print "Socket timeout...server is taking awhile..."			
 
 			except KeyboardInterrupt:
@@ -205,13 +243,9 @@ def getHostAndPort(argsFromCommandLine):
 def main(argv):
 	
 	host, port = getHostAndPort(argv)
-
 	c = Client(host, port)
-
 	c.requestFile()
-
 	c.receiveFilePackets()
-
 	print "Goodbye from client!"
 
 if __name__ == "__main__":

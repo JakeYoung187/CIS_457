@@ -8,12 +8,35 @@ chmod u+x tcpserver.py
 
 chmod u+x tcpclient.py
 
+### Option 1:
 ./tcpserver.py
 
 ./tcpclient.py
 
+#### Then provide host, port, filename as raw input
+
+### Option 2:
+
+./tcpserver.py portNum
+
+./tcpclient.py hostName portNum
+
+#### Then provide filename as raw input
+
+### Example:
+
+./tcpserver.py 1234
+
+./tcpclient.py 127.0.0.1 1234
+
 ### Sample output:
 
-[Multiple clients](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/Project1_Part2_SampleOutput.png)
+[Sliding Window and Ack/Data Loss](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataLoss.png)
 
-[Error handling](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/Project1_Part2_SampleOutput2.png)
+[Ack/Data Reordering](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataReordering.png)
+
+[Ack/Data Duplication](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackDataDuplication.png)
+
+[Ack Corruption](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_ackCorruption.png)
+
+[Data Corruption](https://github.com/adamtwig/CIS_457/blob/master/project1/part2/screenshots/CIS457_Project2_dataCorruption.png)
