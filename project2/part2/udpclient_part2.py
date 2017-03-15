@@ -57,17 +57,20 @@ class Client(object):
 				self.socket.sendto(self.filename, self.server_addr)
 
 	def parsePacket(self, packetStr):
-		myPacket = self.filePacket()
-		packetHeader = packetStr.split("\n")
-		myPacket.index = int(packetHeader[0].split(":")[1])
-		myPacket.serverSentCS = packetHeader[1].split(":")[1]
-		myPacket.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
+		try:
+			myPacket = self.filePacket()
+			packetHeader = packetStr.split("\n")
+			myPacket.index = int(packetHeader[0].split(":")[1])
+			myPacket.serverSentCS = packetHeader[1].split(":")[1]
+			myPacket.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
+		except:
+			myPacket.data = 'Corrupted'
 
 		return myPacket		
 
-	def getCheckSum(self, myPacket):
+	def getCheckSum(self, myStr):
 
-		binPacketList = map(bin, bytearray(str(myPacket)))
+		binPacketList = map(bin, bytearray(str(myStr)))
 
 		result = 0
 		for binByte in binPacketList:
@@ -94,13 +97,19 @@ class Client(object):
 
 		return hexValue
 
+	# compare checksums for corruption
+	# equivalent to result all 1s
 	def checkCorruption(self, packet):
 
-		packet.clientRecvCS = self.getCheckSum(packet)
-		#print packet.serverSentCS, packet.clientRecvCS
-		return packet.serverSentCS != packet.clientRecvCS
+		packet.clientRecvCS = self.getCheckSum(str(packet))
+	
+		corr = False
+		if int(packet.serverSentCS, 16) - int(packet.clientRecvCS, 16) != 0:
+			corr = True
+		
+		return corr
 
-
+	# write currentWindow out to M
 	def writeFile(self):
 		fullFileStr = ''
 		for i in range(self.numPackets):
@@ -121,17 +130,19 @@ class Client(object):
 					curr_packet = self.parsePacket(raw_packet)
 					print "Received packet {}".format(str(curr_packet.index))
 
-					if self.checkCorruption(curr_packet):
+					if curr_packet.data == 'Corrupted' or self.checkCorruption(curr_packet):
 						print "Corruption in packet {}, no ack sent".format(str(curr_packet.index))	
+						print "Server sent checksum: {}, Client received checksum: {}".format(
+							curr_packet.serverSentCS, curr_packet.clientRecvCS)
 					else:
 						if curr_packet.index not in self.currentWindow:
 							self.currentWindow[curr_packet.index] = curr_packet
 							self.numPackets += 1
-						self.socket.sendto(str(curr_packet.index), self.server_addr)
-						print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
-					
-					print "Server sent checksum: {}, Client received checksum: {}".format(
-						curr_packet.serverSentCS, curr_packet.clientRecvCS)
+						ackIndex = str(curr_packet.index)
+						ackCS = self.getCheckSum(ackIndex)
+						ackToSend = ackIndex + ":" + str(ackCS)
+						self.socket.sendto(ackToSend, self.server_addr)
+						print "Sent acknowledgment for packet {}".format(ackIndex)
 				
 			except socket.timeout:
 				print "\nNo more packets from server..."

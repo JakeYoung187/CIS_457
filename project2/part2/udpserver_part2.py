@@ -62,9 +62,9 @@ class Server(object):
 		self.numPackets = int(math.ceil(
 			float(self.fileSize) / float(self.packetDataSize)))
 
-	def getCheckSum(self, myPacket):
+	def getCheckSum(self, myStr):
 
-		binPacketList = map(bin, bytearray(str(myPacket)))
+		binPacketList = map(bin, bytearray(myStr))
 		
 		result = 0
 		for binByte in binPacketList:
@@ -102,7 +102,7 @@ class Server(object):
 					fileChunk = myfile.read(self.packetDataSize)
 					curr_packet = self.filePacket(i, fileChunk, '0x00')
 					#print curr_packet	
-					csHex = self.getCheckSum(curr_packet)
+					csHex = self.getCheckSum(str(curr_packet))
 					curr_packet.checksum = str(csHex)
 					#print curr_packet	
 					self.currentWindow[i] = curr_packet
@@ -116,7 +116,18 @@ class Server(object):
 				if curr_packet.ackRecv == 0:
 					print "Sending packet {}".format(curr_packet.index)
 					self.socket.sendto(str(curr_packet), self.client_addr)
-			
+		
+	def checkForAckCorruption(self, myStr, myCS):
+		myAckCS = int(self.getCheckSum(myStr), 16)
+		myBinCS = int(myCS, 16)
+	
+		ackCor = False
+		# difference between checksums should be 0
+		if (myAckCS - myBinCS) != 0:
+			ackCor = True
+
+		return ackCor
+	
 	def getAcks(self):
 		# wait for acks for n sec
 		# need short time for large files (jpgs)
@@ -127,9 +138,12 @@ class Server(object):
 			try:
 				ack, addr = self.socket.recvfrom(10)
 				# check to make sure not file request
-				if ack.isdigit():
-					print "Received acknowledgment for packet {}".format(ack)
-					self.currentWindow[int(ack)].ackRecv = 1		
+				ackParts = ack.split(":")
+				ackIndex = ackParts[0]
+				ackCS = ackParts[1]
+				if ackIndex.isdigit():
+					print "Received acknowledgment for packet {}".format(ackIndex)
+					self.currentWindow[int(ackIndex)].ackRecv = 1		
 					time.sleep(0.0001)
 			except socket.timeout:
 				#print "Ack timeout"
