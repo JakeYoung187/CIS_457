@@ -12,7 +12,7 @@ class Client(object):
         self.port = port
         self.ipToSend = ipToSend
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(('',self.port))
+        #self.socket.bind(('',self.port))
         self.fileSize = 0
         self.socket.settimeout(4)   
         
