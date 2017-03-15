@@ -2,14 +2,13 @@
 
 '''
 Developer: Adam Terwilliger, Ellysa Stanton
-Version: February 27, 2017
+Version: March 15, 2017
 Purpose: CIS 457 Project 2 Part 2
 Details: UDP File Transfer
 
 Server program
 '''
 import socket, os, sys, math, time
-
 
 class Server(object):
 	def __init__(self, port):
@@ -19,17 +18,20 @@ class Server(object):
 		self.socket.bind(('',self.port))
 		self.socket.settimeout(10)
 		self.filename = ''
-		self.windowSize = 10
+		self.windowSize = 5
 		self.packetDataSize = 32
 		self.fileSize = 0
 		self.numPackets = 0
-		self.currentWindow = []	
+		self.currentWindow = {}
+		self.leftMostPacket = 0
+		self.numAcksRecv = 0
 	
 	class filePacket(object):
 		def __init__(self, index, data, last):
 			self.index = index
 			self.data = data
 			self.last = last
+			self.ackRecv = 0
 
 		def __str__(self):
 			return "Index:{}\nLast:{}\nENDOFHEADER{}".format(self.index, self.last, self.data)
@@ -37,47 +39,104 @@ class Server(object):
 		def __repr__(self):
 			return str(self)	
 
-
 	def getFilename(self):
 		
 		print "Waiting for client(s) to request a file..."	
-		self.filename, self.client_addr = self.socket.recvfrom(1024)
+		while 1:
+			try:
+				self.filename, self.client_addr = self.socket.recvfrom(1024)
+				break
+			except socket.timeout:
+				print "Socket timeout...please request a file."
+			except KeyboardInterrupt:
+				print "\nCome again soon..."
+				sys.exit(-1)
 
 		if self.filename in os.listdir("."):
 			print ("\nFile request received from client for: {}".format(self.filename))
 	
 			self.fileSize = os.path.getsize(self.filename)
+			#if self.fileSize > 512:
+			#	self.packetDataSize = 512
 			self.setNumberOfPackets()
-
-	def serveFileRequests(self):	
-
-		with open(self.filename, 'r') as myfile:
-
-			for i in range(self.windowSize):
-				fileChunk = myfile.read(self.packetDataSize)
-				curr_packet = self.filePacket(i, fileChunk, 0)
-				self.currentWindow.append(curr_packet)
-			
-			#print self.currentWindow
-
-			#for packet in self.currentWindow:
-			#if True:
-				#if packet.index == 3:
-				
-				#print "\nPacket contents:\n", curr_packet
-				print "Sending packet {} of size {}".format(curr_packet.index, len(str(curr_packet)))
-				self.socket.sendto(str(curr_packet), self.client_addr)
-				
-				time.sleep(1)
-
-				ack, addr = self.socket.recvfrom(10)
-				print "Received ack from {}".format(ack)
-		
+	
 	def setNumberOfPackets(self):
 		self.numPackets = int(math.ceil(
 			float(self.fileSize) / float(self.packetDataSize)))
-	
 
+	def initialServe(self, myfile):
+		# send initial window
+		for i in range(self.windowSize):
+			fileChunk = myfile.read(self.packetDataSize)
+			curr_packet = self.filePacket(i, fileChunk, 0)
+			self.currentWindow[i] = curr_packet
+			
+			print "Sending packet {} of size {}".format(curr_packet.index, len(str(curr_packet)))
+			self.socket.sendto(str(curr_packet), self.client_addr)
+
+	def nextServe(self, myfile):
+		
+		#print "Leftmost packet: {}".format(self.leftMostPacket)
+
+		for i in range(self.leftMostPacket, self.leftMostPacket+self.windowSize):
+			# if we haven't already read this fileChunk
+			if i <= self.numPackets:
+				if i not in self.currentWindow:
+					myfile.seek(i*self.packetDataSize)
+					fileChunk = myfile.read(self.packetDataSize)
+					curr_packet = self.filePacket(i, fileChunk, 0)
+					if i == self.numPackets:
+						curr_packet.last = 1
+					self.currentWindow[i] = curr_packet
+						
+				else:
+					curr_packet = self.currentWindow[i]		
+		
+				#print "Sending packet {} of size {}".format(curr_packet.index, len(str(curr_packet)))
+				print "Sending packet {}".format(curr_packet.index)
+				self.socket.sendto(str(curr_packet), self.client_addr)
+			
+	def getAcks(self):
+		# wait for acks for n sec
+		self.socket.settimeout(0.001)
+		while 1:
+			try:
+				ack, addr = self.socket.recvfrom(10)
+				print "Received acknowledgment for packet {}".format(ack)
+				self.currentWindow[int(ack)].ackRecv = 1		
+				time.sleep(0.0001)
+			except socket.timeout:
+				#print "Ack timeout"
+				break
+			except KeyboardInterrupt:
+				print "\nCome again soon..."
+				sys.exit(-1)
+	
+	def slideWindow(self):
+
+		slideSize = 0
+		while slideSize < self.windowSize and self.leftMostPacket <= self.numPackets:
+			if self.currentWindow[self.leftMostPacket].ackRecv == 0:
+				break
+			else:
+				self.leftMostPacket += 1
+				self.numAcksRecv +=1
+				slideSize +=1
+
+	def serveFileRequests(self):	
+
+		fp = open(self.filename, 'r')
+		self.initialServe(fp)
+		while 1:
+			self.getAcks()
+			self.slideWindow()
+			if self.numAcksRecv >= self.numPackets:
+				break
+			else:
+				self.nextServe(fp)
+
+			#print "NumAcks: {}, NumPacks: {}".format(self.numAcksRecv, self.numPackets)
+	
 def getPort(argsFromCommandLine):
 	
 	if len(argsFromCommandLine) == 2:

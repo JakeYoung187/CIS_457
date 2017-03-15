@@ -20,6 +20,9 @@ class Client(object):
 		self.filename = ''
 		self.packetSize = 64
 		self.fileStr = ''
+		self.leftMostPacket = 0
+		self.currentWindow = {}
+		self.numPackets = 0
 
 	class filePacket(object):
 		def __init__(self, index=None, data=None, last=None):
@@ -51,22 +54,49 @@ class Client(object):
 
 		return myPacket		
 
+	def writeFile(self):
+		fullFileStr = ''
+		for i in range(self.numPackets):
+			fullFileStr += self.currentWindow[i].data
+		
+		mynewfile = open('new_' + self.filename, 'w')
+		mynewfile.write(fullFileStr)
+		print("\nFile written as: 'new_{}'".format(self.filename))	
+
 	def receiveFilePackets(self):
+
+		testVar = 0
 
 		while 1:
 			try:
-				time.sleep(1)	
+				
 				raw_packet, self.server_addr = self.socket.recvfrom(self.packetSize)
 				curr_packet = self.parsePacket(raw_packet)
 				print "Received packet {}".format(str(curr_packet.index))
+				if curr_packet.index not in self.currentWindow:
+					self.currentWindow[curr_packet.index] = curr_packet
+					self.numPackets += 1
+				'''
 				self.socket.sendto(str(curr_packet.index), self.server_addr)
-				print "Sent acknowledgement for packet {}".format(str(curr_packet.index))
-				self.fileStr += curr_packet.data
+				print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
+				'''
+				if curr_packet.index != 2 or testVar >= 3:
+					self.socket.sendto(str(curr_packet.index), self.server_addr)
+					print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
+				elif curr_packet.index == 2 and testVar < 3:
+					print "Dropping packet 2"
+					testVar +=1
+
+				#if curr_packet.last:
+				#	break
+			
 			#except self.timeout:
 			#	print "Timeout error"
 			except KeyboardInterrupt:
-				print self.fileStr
-				sys.exit(-1)
+				self.writeFile()
+				print "Come back again soon..."
+				break
+				#sys.exit(-1)
 
 #Regular Expression check for valid host name
 #http://stackoverflow.com/questions/2532053/validate-a-hostname-string
