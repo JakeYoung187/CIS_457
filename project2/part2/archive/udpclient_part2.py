@@ -18,22 +18,20 @@ class Client(object):
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.socket.settimeout(5)
 		self.filename = ''
-		self.packetSize = 128
+		self.packetSize = 64
 		self.fileStr = ''
 		self.leftMostPacket = 0
 		self.currentWindow = {}
 		self.numPackets = 0
 
 	class filePacket(object):
-		def __init__(self, index=None, data=None, serverSentCS=None):
+		def __init__(self, index=None, data=None, last=None):
 			self.index = index
 			self.data = data
-			self.checksum = '0x00'
-			self.serverSentCS = serverSentCS
-			self.clientRecvCS = '0x00'
+			self.last = last
 		
 		def __str__(self):
-			return "Index:{}\nChecksum:{}\nENDOFHEADER{}".format(self.index, self.checksum, self.data)
+			return "Size: {}\n Index: {}\n Last: {}\n Data:\n {}".format(self.size, self.index, self.last, self.data)
 
 		def __repr__(self):
 			return str(self)
@@ -60,46 +58,10 @@ class Client(object):
 		myPacket = self.filePacket()
 		packetHeader = packetStr.split("\n")
 		myPacket.index = int(packetHeader[0].split(":")[1])
-		myPacket.serverSentCS = packetHeader[1].split(":")[1]
+		myPacket.last = int(packetHeader[1].split(":")[1])
 		myPacket.data = packetStr[packetStr.index('ENDOFHEADER') + len('ENDOFHEADER'):]
 
 		return myPacket		
-
-	def getCheckSum(self, myPacket):
-
-		binPacketList = map(bin, bytearray(str(myPacket)))
-
-		result = 0
-		for binByte in binPacketList:
-			intBinByte = int(binByte, 2)
-			result += intBinByte
-			binResult = bin(result)
-			if len(binResult) == 11:
-				result -= 256
-				result += 1
-
-		binResult = bin(result)[2:]
-		while(len(binResult) < 8):
-			binResult = ('0' + binResult)
-
-		onesComp = ''
-		for bit in binResult:
-			if bit == '0':
-				onesComp += '1'
-			elif bit == '1':
-				onesComp += '0'
-
-		finalByte = int(onesComp, 2)
-		hexValue = hex(finalByte)
-
-		return hexValue
-
-	def checkCorruption(self, packet):
-
-		packet.clientRecvCS = self.getCheckSum(packet)
-		#print packet.serverSentCS, packet.clientRecvCS
-		return packet.serverSentCS != packet.clientRecvCS
-
 
 	def writeFile(self):
 		fullFileStr = ''
@@ -108,7 +70,7 @@ class Client(object):
 		
 		mynewfile = open('new_' + self.filename, 'w')
 		mynewfile.write(fullFileStr)
-		print("File written as: 'new_{}'".format(self.filename))	
+		print("\nFile written as: 'new_{}'".format(self.filename))	
 
 	def receiveFilePackets(self):
 		
@@ -120,18 +82,14 @@ class Client(object):
 				if "request" not in raw_packet:
 					curr_packet = self.parsePacket(raw_packet)
 					print "Received packet {}".format(str(curr_packet.index))
-
-					if self.checkCorruption(curr_packet):
-						print "Corruption in packet {}, no ack sent".format(str(curr_packet.index))	
-					else:
-						if curr_packet.index not in self.currentWindow:
-							self.currentWindow[curr_packet.index] = curr_packet
-							self.numPackets += 1
-						self.socket.sendto(str(curr_packet.index), self.server_addr)
-						print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
-				
+					if curr_packet.index not in self.currentWindow:
+						self.currentWindow[curr_packet.index] = curr_packet
+						self.numPackets += 1
+					self.socket.sendto(str(curr_packet.index), self.server_addr)
+					print "Sent acknowledgment for packet {}".format(str(curr_packet.index))
+			
 			except socket.timeout:
-				print "\nNo more packets from server..."
+				print "No more packets from server..."
 				self.writeFile()
 				break
 			except KeyboardInterrupt:

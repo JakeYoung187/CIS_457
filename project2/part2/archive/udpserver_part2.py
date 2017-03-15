@@ -27,21 +27,21 @@ class Server(object):
 		self.numAcksRecv = 0
 	
 	class filePacket(object):
-		def __init__(self, index, data, checksum):
+		def __init__(self, index, data, last):
 			self.index = index
 			self.data = data
-			self.checksum = checksum
+			self.last = last
 			self.ackRecv = 0
 
 		def __str__(self):
-			return "Index:{}\nChecksum:{}\nENDOFHEADER{}".format(self.index, self.checksum, self.data)
+			return "Index:{}\nLast:{}\nENDOFHEADER{}".format(self.index, self.last, self.data)
 
 		def __repr__(self):
 			return str(self)	
 
 	def getFilename(self):
 		
-		print "Waiting for client to request a file..."	
+		print "Waiting for client(s) to request a file..."	
 		while 1:
 			try:
 				self.filename, self.client_addr = self.socket.recvfrom(1024)
@@ -62,56 +62,32 @@ class Server(object):
 		self.numPackets = int(math.ceil(
 			float(self.fileSize) / float(self.packetDataSize)))
 
-	def getCheckSum(self, myPacket):
+	def initialServe(self, myfile):
+		# send initial window
+		for i in range(self.windowSize):
+			fileChunk = myfile.read(self.packetDataSize)
+			curr_packet = self.filePacket(i, fileChunk, 0)
+			self.currentWindow[i] = curr_packet
+			print "Sending packet {}".format(curr_packet.index)
+			self.socket.sendto(str(curr_packet), self.client_addr)
 
-		binPacketList = map(bin, bytearray(str(myPacket)))
-		
-		result = 0
-		for binByte in binPacketList:
-			intBinByte = int(binByte, 2)
-			result += intBinByte
-			binResult = bin(result)
-			if len(binResult) == 11:
-				result -= 256
-				result += 1
-
-		binResult = bin(result)[2:]
-		while(len(binResult) < 8):
-			binResult = ('0' + binResult)
-		
-		onesComp = ''
-		for bit in binResult:
-			if bit == '0':
-				onesComp += '1'
-			elif bit == '1':
-				onesComp += '0'
-
-		finalByte = int(onesComp, 2)
-		hexValue = hex(finalByte)		
-
-		return hexValue
-	
-	def sendPackets(self, myfile):
+	def nextServe(self, myfile):
 
 		for i in range(self.leftMostPacket, self.leftMostPacket+self.windowSize):
-			# don't go beyond the number of total packets
+			# if we haven't already read this fileChunk
 			if i <= self.numPackets:
-				# if we haven't already read this fileChunk
 				if i not in self.currentWindow:
 					myfile.seek(i*self.packetDataSize)
 					fileChunk = myfile.read(self.packetDataSize)
-					curr_packet = self.filePacket(i, fileChunk, '0x00')
+					curr_packet = self.filePacket(i, fileChunk, 0)
+					if i == self.numPackets:
+						curr_packet.last = 1
 					self.currentWindow[i] = curr_packet
 						
 				# else don't re-read file and its already in M
 				else:
 					curr_packet = self.currentWindow[i]		
-	
-				#print curr_packet	
-				csHex = self.getCheckSum(curr_packet)
-				curr_packet.checksum = str(csHex)
-				#print curr_packet	
-
+		
 				# if we haven't already received an ack for this packet
 				if curr_packet.ackRecv == 0:
 					print "Sending packet {}".format(curr_packet.index)
@@ -151,22 +127,15 @@ class Server(object):
 
 	def serveFileRequests(self):	
 
-		# file pointer to requested file
 		fp = open(self.filename, 'r')
-
-		# send entire initial window
-		self.sendPackets(fp)
-
-		# loop until we've received
-		# num unique acks = num packets
+		self.initialServe(fp)
 		while 1:
 			self.getAcks()
 			self.slideWindow()
 			if self.numAcksRecv >= self.numPackets:
-				print "\nAll acks received from client..."
 				break
 			else:
-				self.sendPackets(fp)
+				self.nextServe(fp)
 	
 def getPort(argsFromCommandLine):
 	
