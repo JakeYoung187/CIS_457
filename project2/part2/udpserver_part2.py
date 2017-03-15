@@ -50,7 +50,9 @@ class Server(object):
 					self.socket.sendto("File request received", self.client_addr)
 					self.fileSize = os.path.getsize(self.filename)
 					self.setNumberOfPackets()
-				break
+					break
+				else:
+					self.filename = ''
 			except socket.timeout:
 				print "Socket timeout...please request a file."
 			except KeyboardInterrupt:
