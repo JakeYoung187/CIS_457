@@ -13,6 +13,7 @@ import socket, os, sys
 import netifaces
 import struct
 import binascii
+import time
 
 '''
 http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-address-to-binary-data-for-use-in-an-ethernet-fr
@@ -34,8 +35,8 @@ def main(argv):
     http://stackoverflow.com/questions/24415294/python-arp-sniffing-raw-socket-no-reply-packets
     '''
     while True:
+
         packet = s.recvfrom(2048)
-        
         
         eth_header = packet[0][0:14]
         eth_detailed = struct.unpack("!6s6s2s", eth_header)
@@ -46,17 +47,7 @@ def main(argv):
         # skip non-ARP packets
         eth_type = eth_detailed[2]
 
-        #if ethertype not in ['\x08\x06', '\x00\x08'] :
-        if eth_type != '\x08\x06':
-            #print "narp narp snarf"
-            continue
-       
-        #elif ethertype == '\x00\x08':
-        #    print i
-        #    print 'ICMP echo request'
- 
-
-        elif eth_type == '\x08\x06':
+        if eth_type == '\x08\x06':
             print "****************_INCOMING_PACKET_***************"
             print "****************_ARP_REQUEST_*******************"
             print "****************_ETHERNET_FRAME_****************"
@@ -110,11 +101,10 @@ def main(argv):
             # cast back to tuple -- might not be needed?
             new_eth_detailed = tuple(new_eth_detailed_list)
             new_arp_detailed = tuple(new_arp_detailed_list)
-
-            # pack back to binary
             '''
             http://stackoverflow.com/questions/16368263/python-struct-pack-for-individual-elements-in-a-list
             '''
+            # pack back to binary
             new_eth_header = struct.pack("6s6s2s", *new_eth_detailed)
             new_arp_header = struct.pack("2s2s1s1s2s6s4s6s4s", *new_arp_detailed)
 
@@ -150,72 +140,118 @@ def main(argv):
 
             # send new packet to addr received from old packet
             s.sendto(new_packet, packet[1])
+           
+            time.sleep(1)
+
+        elif eth_type != '\x08\x06':
             
-            while 1:
-                icmp_packet = s.recvfrom(1024)
- 
-                #eth_header = icmp_packet[0][0:14]
-                #eth_detailed = struct.unpack("!6s6s2s", ethernet_header)
+            icmp_packet = s.recvfrom(2048)
 
-                #ip_header = icmp_packet[0][14:34]
-                ip_header = icmp_packet[0][0:20]
-                ip_detailed = struct.unpack("!1s1s2s2s2s1s1s2s4s4s", ip_header)
-                #ip_ver, ip_type, ip_len, ip_id, ip_flags, ip_ttl, ip_proto, \
-                #    ip_checksum, ip_srcIP, ip_destIP = struct.unpack("!BBHHHBBHII", ip_header)
+            eth_header = icmp_packet[0][0:14]
+            eth_detailed = struct.unpack("!6s6s2s", eth_header)
 
+            ip_header = icmp_packet[0][14:34]
+            ip_detailed = struct.unpack("1s1s2s2s2s1s1s2s4s4s", ip_header)
+            #ip_ver, ip_type, ip_len, ip_id, ip_flags, ip_ttl, ip_proto, \
+            #    ip_checksum, ip_srcIP, ip_destIP = struct.unpack("!BBHHHBBHII", ip_header)
 
-                #icmp_header = icmp_packet[0][34:42]
-                icmp_header = icmp_packet[0][20:28]
-                icmp_detailed = struct.unpack("!1s1s2s4s", icmp_header)
-		#icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq = struct.unpack("bbHHh", icmp_header)
+            icmp_header = icmp_packet[0][34:42]
+            icmp_detailed = struct.unpack("1s1s2s4s", icmp_header)
+            #icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq = struct.unpack("bbHHh", icmp_header)
 
-                #if icmp_detailed[0] == '\x08':
-                #if icmp_type == 8:
-                ip_type = ip_detailed[1]
-                ip_protocol = ip_detailed[6]
+            ip_type = ip_detailed[1]
+            ip_protocol = ip_detailed[6]
 
-                if ip_type == '\x00' and ip_protocol == '\x01':
-                #if True:
-                    print "****************_INCOMING_PACKET_***************"
-                    print "****************_ICMP_ECHO_REQUEST_*************"
-                    print "****************_IP_HEADER_*********************"
-                    print "Version/IHL:     ", binascii.hexlify(ip_detailed[0])
-                    print "Type of service: ", binascii.hexlify(ip_detailed[1])
-                    print "Length:          ", binascii.hexlify(ip_detailed[2])
-                    print "Identification:  ", binascii.hexlify(ip_detailed[3])
-                    print "Flags/offset:    ", binascii.hexlify(ip_detailed[4])
-                    print "Time to Live:    ", binascii.hexlify(ip_detailed[5])
-                    print "Protocol:        ", binascii.hexlify(ip_detailed[6])
-                    print "Source IP:       ", binascii.hexlify(ip_detailed[7])
-                    print "Dest IP:         ", binascii.hexlify(ip_detailed[8])
-                    #print "Source IP:      ", socket.inet_ntoa(ip_detailed[7])
-                    #print "Dest IP:        ", socket.inet_ntoa(ip_detailed[8])
-                    print "************************************************"
-                    print "******************_ICMP_HEADER_******************"
-                    print "Type of Msg:     ", binascii.hexlify(arp_detailed[0])
-                    print "Code:            ", binascii.hexlify(arp_detailed[1])
-                    print "Checksum:        ", binascii.hexlify(arp_detailed[2])
-                    print "Header data:     ", binascii.hexlify(arp_detailed[3])
-                    
-                    '''
-                    print "ip_ver: {}".format(ip_ver)
-                    print "ip_type: {}".format(ip_type)
-                    print "ip_len: {}".format(ip_len)
-                    print "ip_id: {}".format(ip_id)
-                    print "ip_flags: {}".format(ip_flags)
-                    print "ip_ttl: {}".format(ip_ttl)
-                    print "ip_proto: {}".format(ip_proto)
-                    print "ip_checksum: {}".format(ip_checksum)
-                    print "ip_srcIP: {}".format(ip_srcIP)
-                    print "ip_destIP: {}".format(ip_destIP)
+            if ip_type == '\x00' and ip_protocol == '\x01':
+                print "****************_INCOMING_PACKET_***************"
+                print "****************_ICMP_ECHO_REQUEST_*************"
+                print "****************_ETHERNET_FRAME_****************"
+                print "Dest MAC:        ", binascii.hexlify(eth_detailed[0])
+                print "Source MAC:      ", binascii.hexlify(eth_detailed[1])
+                print "Type:            ", binascii.hexlify(eth_detailed[2])
+                print "************************************************"
+                print "****************_IP_HEADER_*********************"
+                print "Version/IHL:     ", binascii.hexlify(ip_detailed[0])
+                print "Type of service: ", binascii.hexlify(ip_detailed[1])
+                print "Length:          ", binascii.hexlify(ip_detailed[2])
+                print "Identification:  ", binascii.hexlify(ip_detailed[3])
+                print "Flags/offset:    ", binascii.hexlify(ip_detailed[4])
+                print "Time to Live:    ", binascii.hexlify(ip_detailed[5])
+                print "Protocol:        ", binascii.hexlify(ip_detailed[6])
+                print "Checksum:        ", binascii.hexlify(ip_detailed[7])
+                print "Source IP:       ", socket.inet_ntoa(ip_detailed[8])
+                print "Dest IP:         ", socket.inet_ntoa(ip_detailed[9])
+                print "************************************************"
+                print "******************_ICMP_HEADER_******************"
+                print "Type of Msg:     ", binascii.hexlify(icmp_detailed[0])
+                print "Code:            ", binascii.hexlify(icmp_detailed[1])
+                print "Checksum:        ", binascii.hexlify(icmp_detailed[2])
+                print "Header data:     ", binascii.hexlify(icmp_detailed[3])
                 
-                    print "icmp_type: {}".format(icmp_type)
-		    print "icmp_code: {}".format(icmp_code)
-		    print "icmp_checksum: {}".format(icmp_checksum)
-		    print "p_id: {}".format(icmp_id)
-		    print "icmp_seq: {}".format(icmp_seq)
-                    '''
-                    #s.sendto(new_icmp_packet, icmp_packet[1])
+                # tuples are immutable in python, copy to list
+                new_eth_detailed_list = list(eth_detailed)
+                new_ip_detailed_list = list(ip_detailed)
+                new_icmp_detailed_list = list(icmp_detailed)
+               
+                # swap IPs
+                new_ip_detailed_list[8] = ip_detailed[9]
+                new_ip_detailed_list[9] = ip_detailed[8]
+
+                # swap MACs
+                new_eth_detailed_list[0] = eth_detailed[1]
+                new_eth_detailed_list[1] = eth_detailed[0]
+
+                # change type of msg
+                new_icmp_detailed_list[0] = '\x00'
+
+                # cast back to tuple -- might not be needed?
+                new_eth_detailed = tuple(new_eth_detailed_list)
+                new_ip_detailed = tuple(new_ip_detailed_list)
+                new_icmp_detailed = tuple(new_icmp_detailed_list)
+                
+                # pack back to binary
+                new_eth_header = struct.pack("6s6s2s", *new_eth_detailed)
+                new_ip_header = struct.pack("1s1s2s2s2s1s1s2s4s4s", *new_ip_detailed)
+                new_icmp_header = struct.pack("1s1s2s4s", *new_icmp_detailed)
+
+                # combine eth, ip, and icmp headers
+                new_icmp_packet = new_eth_header + new_ip_header + new_icmp_header
+                
+                eth_header = new_icmp_packet[0:14]
+                eth_detailed = struct.unpack("!6s6s2s", eth_header)
+
+                ip_header = new_icmp_packet[14:34]
+                ip_detailed = struct.unpack("1s1s2s2s2s1s1s2s4s4s", ip_header)
+
+                icmp_header = new_icmp_packet[34:42]
+                icmp_detailed = struct.unpack("1s1s2s4s", icmp_header)
+
+                print "****************_OUTGOING_PACKET_***************"
+                print "****************_ICMP_ECHO_REPLY_***************"
+                print "****************_ETHERNET_FRAME_****************"
+                print "Dest MAC:        ", binascii.hexlify(eth_detailed[0])
+                print "Source MAC:      ", binascii.hexlify(eth_detailed[1])
+                print "Type:            ", binascii.hexlify(eth_detailed[2])
+                print "************************************************"
+                print "****************_IP_HEADER_*********************"
+                print "Version/IHL:     ", binascii.hexlify(ip_detailed[0])
+                print "Type of service: ", binascii.hexlify(ip_detailed[1])
+                print "Length:          ", binascii.hexlify(ip_detailed[2])
+                print "Identification:  ", binascii.hexlify(ip_detailed[3])
+                print "Flags/offset:    ", binascii.hexlify(ip_detailed[4])
+                print "Time to Live:    ", binascii.hexlify(ip_detailed[5])
+                print "Protocol:        ", binascii.hexlify(ip_detailed[6])
+                print "Checksum:        ", binascii.hexlify(ip_detailed[7])
+                print "Source IP:       ", socket.inet_ntoa(ip_detailed[8])
+                print "Dest IP:         ", socket.inet_ntoa(ip_detailed[9])
+                print "************************************************"
+                print "******************_ICMP_HEADER_******************"
+                print "Type of Msg:     ", binascii.hexlify(icmp_detailed[0])
+                print "Code:            ", binascii.hexlify(icmp_detailed[1])
+                print "Checksum:        ", binascii.hexlify(icmp_detailed[2])
+                print "Header data:     ", binascii.hexlify(icmp_detailed[3])
+                
+                s.sendto(new_icmp_packet, icmp_packet[1])
 
 if __name__ == "__main__":
     main(sys.argv)
