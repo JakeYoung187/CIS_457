@@ -121,7 +121,7 @@ def main(argv):
             s.sendto(new_packet, packet[1])
             
             while 1:
-                icmp_packet = s.recvfrom(2048)
+                icmp_packet = s.recvfrom(1024)
  
                 eth_header = icmp_packet[0][0:14]
                 eth_detailed = struct.unpack("!6s6s2s", ethernet_header)
@@ -132,7 +132,7 @@ def main(argv):
 
                 icmp_header = icmp_packet[0][34:42]
                 #icmp_header = icmp_packet[0][20:28]
-                icmp_detailed = struct.unpack("!1s1s2s2s2s", icmp_header)
+                icmp_detailed = struct.unpack("!1s1s2s4s", icmp_header)
 
                 #if icmp_detailed[0] == '\x08':
                 if icmp_header[0] == '\x08':
@@ -142,7 +142,7 @@ def main(argv):
                     print binascii.hexlify(icmp_packet[0][34])
                     print len(binascii.hexlify(icmp_packet[0]))
                     
-                    new_icmp_packet = eth_header + ip_header + '\x00' + icmp_header[1:]
+                    new_icmp_packet = eth_header + ip_header + '\x00' + icmp_header[1:] + icmp_packet[0][42:]
                     #new_icmp_packet = ip_header + '\x00' + icmp_header[1:]              
     
                     print len(binascii.hexlify(new_icmp_packet))
