@@ -36,7 +36,7 @@ def main(argv):
     '''
     while True:
 
-        packet = s.recvfrom(2048)
+        packet = s.recvfrom(1024)
         
         eth_header = packet[0][0:14]
         eth_detailed = struct.unpack("!6s6s2s", eth_header)
@@ -48,8 +48,10 @@ def main(argv):
         eth_type = eth_detailed[2]
 
         if eth_type == '\x08\x06':
+            print "************************************************"    
             print "****************_INCOMING_PACKET_***************"
             print "****************_ARP_REQUEST_*******************"
+            print "************************************************"    
             print "****************_ETHERNET_FRAME_****************"
             print "Dest MAC:        ", binascii.hexlify(eth_detailed[0])
             print "Source MAC:      ", binascii.hexlify(eth_detailed[1])
@@ -65,7 +67,7 @@ def main(argv):
             print "Source IP:       ", socket.inet_ntoa(arp_detailed[6])
             print "Dest MAC:        ", binascii.hexlify(arp_detailed[7])
             print "Dest IP:         ", socket.inet_ntoa(arp_detailed[8])
-            print "*************************************************\n"    
+            print "************************************************\n"    
 
             # strings for ip addresses
             source_IP = socket.inet_ntoa(arp_detailed[6])
@@ -122,8 +124,10 @@ def main(argv):
 
             ethertype = ethernet_detailed[2]
 
+            print "************************************************"    
             print "****************_OUTGOING_PACKET_***************"
             print "****************_ARP_REPLY_*********************"
+            print "************************************************"    
             print "****************_ETHERNET_FRAME_****************"
             print "Dest MAC:        ", binascii.hexlify(ethernet_detailed[0])
             print "Source MAC:      ", binascii.hexlify(ethernet_detailed[1])
@@ -139,18 +143,20 @@ def main(argv):
             print "Source IP:       ", socket.inet_ntoa(arp_detailed[6])
             print "Dest MAC:        ", binascii.hexlify(arp_detailed[7])
             print "Dest IP:         ", socket.inet_ntoa(arp_detailed[8])
-            print "*************************************************\n"    
+            print "************************************************\n"    
 
-            print len(packet[0]), len(new_packet)
+            #print len(packet[0]), len(new_packet)
 
             # send new packet to addr received from old packet
             s.sendto(new_packet, packet[1])
            
-            time.sleep(1)
-
+            #time.sleep(1)
+        
         elif eth_type != '\x08\x06':
             
-            icmp_packet = s.recvfrom(2048)
+            #icmp_packet = s.recvfrom(2048)
+
+            icmp_packet = packet
 
             eth_header = icmp_packet[0][0:14]
             eth_detailed = struct.unpack("!6s6s2s", eth_header)
@@ -166,10 +172,12 @@ def main(argv):
 
             ip_type = ip_detailed[1]
             ip_protocol = ip_detailed[6]
-
+            
             if ip_type == '\x00' and ip_protocol == '\x01':
+                print "************************************************"    
                 print "****************_INCOMING_PACKET_***************"
                 print "****************_ICMP_ECHO_REQUEST_*************"
+                print "************************************************"    
                 print "****************_ETHERNET_FRAME_****************"
                 print "Dest MAC:        ", binascii.hexlify(eth_detailed[0])
                 print "Source MAC:      ", binascii.hexlify(eth_detailed[1])
@@ -187,11 +195,12 @@ def main(argv):
                 print "Source IP:       ", socket.inet_ntoa(ip_detailed[8])
                 print "Dest IP:         ", socket.inet_ntoa(ip_detailed[9])
                 print "************************************************"
-                print "******************_ICMP_HEADER_******************"
+                print "******************_ICMP_HEADER_*****************"
                 print "Type of Msg:     ", binascii.hexlify(icmp_detailed[0])
                 print "Code:            ", binascii.hexlify(icmp_detailed[1])
                 print "Checksum:        ", binascii.hexlify(icmp_detailed[2])
                 print "Header data:     ", binascii.hexlify(icmp_detailed[3])
+                print "************************************************\n"    
                 
                 # tuples are immutable in python, copy to list
                 new_eth_detailed_list = list(eth_detailed)
@@ -231,8 +240,10 @@ def main(argv):
                 icmp_header = new_icmp_packet[34:42]
                 icmp_detailed = struct.unpack("1s1s2s4s", icmp_header)
 
+                print "************************************************"    
                 print "****************_OUTGOING_PACKET_***************"
                 print "****************_ICMP_ECHO_REPLY_***************"
+                print "************************************************"
                 print "****************_ETHERNET_FRAME_****************"
                 print "Dest MAC:        ", binascii.hexlify(eth_detailed[0])
                 print "Source MAC:      ", binascii.hexlify(eth_detailed[1])
@@ -250,13 +261,14 @@ def main(argv):
                 print "Source IP:       ", socket.inet_ntoa(ip_detailed[8])
                 print "Dest IP:         ", socket.inet_ntoa(ip_detailed[9])
                 print "************************************************"
-                print "******************_ICMP_HEADER_******************"
+                print "******************_ICMP_HEADER_*****************"
                 print "Type of Msg:     ", binascii.hexlify(icmp_detailed[0])
                 print "Code:            ", binascii.hexlify(icmp_detailed[1])
                 print "Checksum:        ", binascii.hexlify(icmp_detailed[2])
                 print "Header data:     ", binascii.hexlify(icmp_detailed[3])
+                print "************************************************\n"
 
-                print len(icmp_packet[0]), len(new_icmp_packet)
+                #print len(icmp_packet[0]), len(new_icmp_packet)
 
                 s.sendto(new_icmp_packet, icmp_packet[1])
 
