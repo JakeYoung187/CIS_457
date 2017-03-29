@@ -21,9 +21,54 @@ http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-addre
 def mactobinary(mac):
   return binascii.unhexlify(mac.replace(':', ''))
 
+def parseForwardingTable():
+
+    forwardingTable = {}
+    
+    routingTables = ['r1-table.txt', 'r2-table.txt']
+
+    for rt in routingTables:
+        with open(rt, 'r') as fp:
+            for line in fp:
+                lineParts = line.rstrip().split(' ')
+                prefixParts = lineParts[0].split('/')
+                prefix = prefixParts[0]
+                prefixLen = int(prefixParts[1])
+
+                nextHop = lineParts[1]
+                interface = lineParts[2]
+                
+                router = rt[0:2]
+
+                if router in forwardingTable:
+                    forwardingTable[router].append([prefix, prefixLen, nextHop, interface])
+                else:
+                    forwardingTable[router] = [[prefix, prefixLen, nextHop, interface]]
+
+    return forwardingTable
+
+def routingLookup(forwardingTable, srcIP, destIP):
+    
+    ipSub = {16: 4, 24: 6}
+
+    # get which router from ip?
+    # assume working with r1
+    lookupTable = forwardingTable['r1']
+    for entry in lookupTable:
+        prefix = entry[0]
+        prefixLen = entry[1]
+        nextHop = entry[2]
+        
+        matchCheck = prefix[:ipSub[prefixLen]]
+
+        print matchCheck
 
 def main(argv):    
 
+    ft = parseForwardingTable()
+
+    routingLookup(ft, 'a', 'b')
+    
     try: 
         s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x003))
         print "Socket created correctly."
