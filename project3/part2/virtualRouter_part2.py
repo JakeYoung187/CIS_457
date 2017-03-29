@@ -61,13 +61,21 @@ def routingLookup(forwardingTable, srcIP, destIP):
         
         matchCheck = prefix[:ipSub[prefixLen]]
 
-        print matchCheck
+        destCheck = destIP[:ipSub[prefixLen]]
+
+        if destCheck == matchCheck:
+            if nextHop == '-':
+                print destCheck, matchCheck, destIP
+            else:
+                print destCheck, matchCheck, nextHop
 
 def main(argv):    
 
     ft = parseForwardingTable()
 
-    routingLookup(ft, 'a', 'b')
+    routingLookup(ft, '10.1.0.1', '10.3.0.1')
+    
+    routingLookup(ft, '10.1.0.1', '10.1.1.5')
     
     try: 
         s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x003))
