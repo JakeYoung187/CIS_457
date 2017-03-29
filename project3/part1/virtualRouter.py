@@ -85,7 +85,10 @@ def main(argv):
             # tuples are immutable in python, copy to list
             new_eth_detailed_list = list(eth_detailed)
             new_arp_detailed_list = list(arp_detailed)
-           
+
+            # change arp op code
+            new_arp_detailed_list[4] = '\x00\x02'
+
             # swap IPs
             new_arp_detailed_list[6] = arp_detailed[8]
             new_arp_detailed_list[8] = arp_detailed[6]
@@ -137,6 +140,8 @@ def main(argv):
             print "Dest MAC:        ", binascii.hexlify(arp_detailed[7])
             print "Dest IP:         ", socket.inet_ntoa(arp_detailed[8])
             print "*************************************************\n"    
+
+            print len(packet[0]), len(new_packet)
 
             # send new packet to addr received from old packet
             s.sendto(new_packet, packet[1])
@@ -214,8 +219,8 @@ def main(argv):
                 new_ip_header = struct.pack("1s1s2s2s2s1s1s2s4s4s", *new_ip_detailed)
                 new_icmp_header = struct.pack("1s1s2s4s", *new_icmp_detailed)
 
-                # combine eth, ip, and icmp headers
-                new_icmp_packet = new_eth_header + new_ip_header + new_icmp_header
+                # combine eth, ip, and icmp headers and icmp data
+                new_icmp_packet = new_eth_header + new_ip_header + new_icmp_header + icmp_packet[0][42:]
                 
                 eth_header = new_icmp_packet[0:14]
                 eth_detailed = struct.unpack("!6s6s2s", eth_header)
@@ -250,7 +255,9 @@ def main(argv):
                 print "Code:            ", binascii.hexlify(icmp_detailed[1])
                 print "Checksum:        ", binascii.hexlify(icmp_detailed[2])
                 print "Header data:     ", binascii.hexlify(icmp_detailed[3])
-                
+
+                print len(icmp_packet[0]), len(new_icmp_packet)
+
                 s.sendto(new_icmp_packet, icmp_packet[1])
 
 if __name__ == "__main__":
