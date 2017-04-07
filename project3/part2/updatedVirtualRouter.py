@@ -58,8 +58,30 @@ class virtualRouter(object):
             fp = self.filePacket(raw_packet)
             fp.setPacketType()
 
-            if fp.packetType != "Unknown":
+           if fp.packetType != "Unknown":
                 print fp.packetType
+
+            if fp.packetType == "ARP":
+                
+                print fp.packetType
+                
+                #construct ARP
+
+            if fp.packetType = "ICMP":
+                
+                print fp.packetType
+
+                # decrement TTL
+
+                # checksum
+
+                # get routing nextHop
+
+                # construct ICMP
+                
+
+            # send packet
+
 
 
 
