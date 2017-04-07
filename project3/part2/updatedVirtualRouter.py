@@ -14,8 +14,9 @@ class virtualRouter(object):
     def __init__(self):
         self.socket = socket.socket(socket.AF_PACKET,socket.SOCK_RAW, 
                         socket.htons(0x003))
-
-   class filePacket(object):
+        self.maxPacketSize = 1024
+        
+    class filePacket(object):
         def __init__(self, packetBytes, ethHeader=None, arpHeader=None,
                         ipHeader=None, icmpHeader=None):
             self.packetBytes = packetBytes
@@ -23,7 +24,6 @@ class virtualRouter(object):
             self.arpHeader = arpHeader
             self.ipHeader = ipHeader
             self.icmpHeader = icmpHeader
-            self.maxPacketSize = 1024
             self.packetType = 'Unknown'
 
         def setPacketType(self):
@@ -32,10 +32,12 @@ class virtualRouter(object):
             self.ethHeader = struct.unpack("!6s6s2s", eth_raw)
 
             # skip non-ARP packets
-            eth_type = eth_detailed[2]
+            eth_type = self.ethHeader[2]
 
             if eth_type == '\x08\x06':
                 self.packetType = 'ARP'
+                arp_raw = self.packetBytes[14:42]
+                self.arpHeader = struct.unpack("2s2s1s1s2s6s4s6s4s", arp_raw)
 
             else:
                 ip_raw = self.packetBytes[14:34]
@@ -47,20 +49,22 @@ class virtualRouter(object):
                 if ip_type == '\x00' and ip_protocol == '\x01':
                     self.packetType = 'ICMP'
 
-    '''
+                icmp_raw = self.packetBytes[34:42]
+                self.icmpHeader = struct.unpack("1s1s2s4s", icmp_raw)
+
     def getPackets(self):
         while True:
-            raw_packet, addr = self.socket.recvFrom(self.maxPacketSize)
-            fp = filePacket(raw_packet)
+            raw_packet, addr = self.socket.recvfrom(self.maxPacketSize)
+            fp = self.filePacket(raw_packet)
             fp.setPacketType()
 
-    '''
+            if fp.packetType != "Unknown":
+                print fp.packetType
 
 
 
 #http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-address-to-binary-data-for-use-in-an-ethernet-fr
 
-'''
 def mactobinary(mac):
   return binascii.unhexlify(mac.replace(':', ''))
 
@@ -112,6 +116,20 @@ def routingLookup(forwardingTable, srcIP, destIP):
             else:
                 print destCheck, matchCheck, nextHop
 
+def main(argv):
+
+    ft = parseForwardingTable()
+    routingLookup(ft, '10.1.0.1', '10.3.0.1')
+    routingLookup(ft, '10.1.0.1', '10.1.1.5')
+
+    vr = virtualRouter()
+    vr.getPackets()
+
+if __name__ == "__main__":
+    main(sys.argv)
+
+
+'''
 def main(argv):    
 
     ft = parseForwardingTable()
@@ -367,5 +385,3 @@ def main(argv):
 
                 s.sendto(new_icmp_packet, icmp_packet[1])
 '''
-if __name__ == "__main__":
-    main(sys.argv)
