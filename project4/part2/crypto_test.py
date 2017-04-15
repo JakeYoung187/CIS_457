@@ -1,21 +1,41 @@
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import dsa, rsa
-from cryptography.hazmat.primitives.serialization import *
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
 
-#der_data = 'RSApriv.der'
+pub_data = open('RSApub.pem','r').read()
+priv_data = open('RSApriv.pem','r').read()
+pub_key = load_pem_public_key(pub_data, backend=default_backend())
+priv_key = load_pem_private_key(priv_data, password=None, backend=default_backend())
 
-#key = load_der_private_key(der_data, password=None, backend=default_backend())
-#print isinstance(key, rsa.RSAPrivateKey)
-
-#pem_data = 'RSApriv.pem'
+print pub_key, priv_key
 
 
-'''
-key = load_pem_private_key(pem_data, password=None, backend=default_backend())
-if isinstance(key, rsa.RSAPrivateKey):
-	signature = sign_with_rsa_key(key, message)
-elif isinstance(key, dsa.DSAPrivateKey):
-	signature = sign_with_dsa_key(key, message)
-else:
-	raise TypeError
-'''
+message = b"encrypted data"
+ciphertext = pub_key.encrypt(
+		message,
+		padding.OAEP(
+			mgf=padding.MGF1(algorithm=hashes.SHA1()),
+			algorithm=hashes.SHA1(),
+			label=None
+		)
+	)
+
+plaintext = priv_key.decrypt(
+		ciphertext,
+		padding.OAEP(
+			mgf=padding.MGF1(algorithm=hashes.SHA1()),
+			algorithm=hashes.SHA1(),
+			label=None
+		)
+)
+print plaintext
+
+from cryptography.fernet import Fernet
+key = Fernet.generate_key()
+f = Fernet(key)
+token = f.encrypt(b"my deep dark secret")
+print token
+print f.decrypt(token)
+#'my deep dark secret'
+
