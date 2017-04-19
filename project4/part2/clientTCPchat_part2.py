@@ -92,8 +92,10 @@ class clientTCPchat(object):
 
 	def decryptTraffic(self, token):
 		from cryptography.fernet import Fernet
-		f = Fernet(self.symKey)	
+		f = Fernet(self.symKey)
+		print "Received encrypted msg from server:\n{}".format(token)
 		msg = f.decrypt(token)
+		print "Decrypted msg using symmetric key:"
 		return msg
 
 	def execute(self):
@@ -106,7 +108,7 @@ class clientTCPchat(object):
 
 				# wait for input from stdin & socket
 				inputready, outputready,exceptrdy = select.select([0, self.sock], [],[])
-				
+
 				# read next line or break
 				for i in inputready:
 					if i == 0:
@@ -114,7 +116,6 @@ class clientTCPchat(object):
 						if data: 
 							# send encrypted data to server
 							eData = self.encryptTraffic(data)
-							#self.sock.send(data)
 							self.sock.send(eData)
 					elif i == self.sock:
 						# receive encrypted data from server
@@ -135,7 +136,7 @@ class clientTCPchat(object):
 							
 			except KeyboardInterrupt:
 				print '...received interrupt.\nCome again soon!'
-				self.sock.close()
+				#self.sock.close()
 				break
 
 #Regular Expression check for valid host name

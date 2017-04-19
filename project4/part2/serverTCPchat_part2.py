@@ -53,13 +53,13 @@ class serverTCPchat(object):
 				label=None
         	)
 		)
-		print ptSymKey
 		return ptSymKey
 
 	def encryptTraffic(self, client, msg):
 		from cryptography.fernet import Fernet
 		f = Fernet(self.symKeyMap[client])
 		token = f.encrypt(msg)
+		print "Encrypting using symmetric key..."
 		return token
 
 	def decryptTraffic(self, client, token):
@@ -84,7 +84,8 @@ class serverTCPchat(object):
 		
 		for o in self.outputs:
 			if o == client:
-				eHelpCmd = self.encryptTraffic(client, helpCmd)
+				eHelpCmd = self.encryptTraffic(o, helpCmd)
+				print "Sending help to {}".format(self.getname(o))
 				o.send(eHelpCmd)
 				
 	def getListOfUsers(self, client):
@@ -95,7 +96,8 @@ class serverTCPchat(object):
 		listOfUsers = 'Online Users ' + str(users)
 		for o in self.outputs:
 			if o == client:
-				eListOfUsers = self.encryptTraffic(client, listOfUsers)
+				eListOfUsers = self.encryptTraffic(o, listOfUsers)
+				print "Sending list to {}".format(self.getname(o))
 				o.send(eListOfUsers)
 				
 	def sendMessageToAll(self, client, arguments):
@@ -106,7 +108,8 @@ class serverTCPchat(object):
 					msg += (arg + ' ')
 				p = '{}: '.format(self.getname(client))
 				broadcast = p + msg
-				eBroadcast = self.encryptTraffic(client, broadcast)
+				eBroadcast = self.encryptTraffic(o, broadcast)
+				print "Sending broadcast to {}".format(self.getname(o))
 				o.send(eBroadcast)
 				
 	def sendMessage(self, client, arguments):
@@ -124,7 +127,8 @@ class serverTCPchat(object):
 					if o == key:
 						p = '{}: '.format(self.getname(client))
 						idvMsg = p + msg
-						eIdvMsg = self.encryptTraffic(client, msg)
+						eIdvMsg = self.encryptTraffic(o, msg)
+						print "Sending msg to {}".format(self.getname(o))
 						o.send(eIdvMsg)
 						return
 		e = 'User {} is not connected.'.format(arguments[0])
@@ -149,7 +153,8 @@ class serverTCPchat(object):
 				for o in self.outputs:
 					if o == key:
 						kickMsg = 'You are the weakest link...goodbye.'
-						eKickMsg = self.encryptTraffic(client, kickMsg)
+						eKickMsg = self.encryptTraffic(o, kickMsg)
+						print "Kicking {}...:(".format(self.getname(o))
 						o.send(eKickMsg)
 						self.inputs.remove(o)
 						self.outputs.remove(o)
@@ -164,7 +169,8 @@ class serverTCPchat(object):
 			error = errorMsg
 		for o in self.outputs:
 			if o == client:
-				eError = self.encryptTraffic(client, error)	
+				eError = self.encryptTraffic(o, error)	
+				print "Sending error msg to {}".format(self.getname(o))
 				o.send(eError)
 				
 	def isUserOnline(self, userName):
@@ -223,9 +229,9 @@ class serverTCPchat(object):
 
 					self.clientmap[client] = (address, cname)
 					# Send joining information to other clients
-					msg = 'Connected a new client'
-					for o in self.outputs:
-						o.send(msg)
+					#msg = 'Connected a new client'
+					#for o in self.outputs:
+					#	o.send(msg)
 					
 					self.outputs.append(client)
 			
@@ -246,7 +252,6 @@ class serverTCPchat(object):
 					try:
 						# receive encrypted data from client
 						eData = s.recv(self.maxBufSize)
-						print eData
 						if eData:
 							data = self.decryptTraffic(s, eData)
 							self.handleClientData(data, s)
