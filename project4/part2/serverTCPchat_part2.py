@@ -2,32 +2,25 @@
 
 '''
 Developers:  Adam Terwilliger, Ellysa Stanton
-Version:	 April 12, 2017
-Objective:	 CIS 457 Project 4 Part 1
-			 TCP Encrypted Chat Program
-Details:	 Implement a multi-client/server chat system.
-			 Learn how to encrypt/decrypt in code.
-Credits:	 Josh Engelsma, Andrew Kalafut
-
-Server program
+Version:     April 17, 2017
+Objective:   CIS 457 Project 4 Part 2
+Details:     TCP Encrypted Chat Program
+Credits:     Josh Engelsma, Andrew Kalafut
 '''
 
-import select
-import socket
-import sys
-import signal
+import sys, socket, select, signal
 
-BUFSIZ = 1024
-
-
-class ChatServer(object):
+class serverTCPchat(object):
 	def __init__(self, port=1234, backlog=5):
 		self.port = port
+		self.maxBufSize = 1024
 		self.clients = 0
 		self.clientmap = {}
 		self.groupmap = {}
 		self.outputs = []
 		self.inputs = []
+		self.privKey = None
+		self.symKeyMap = {}
 		self.adminPassword = 'boboddy'
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -41,6 +34,39 @@ class ChatServer(object):
 		for o in self.outputs:
 			o.close() 
 		self.server.close()
+	
+	def loadRSAprivKey(self):
+		from cryptography.hazmat.backends import default_backend
+		from cryptography.hazmat.primitives.serialization import load_pem_private_key
+		priv_data = open('RSApriv.pem','r').read()
+		self.privKey = load_pem_private_key(priv_data, password=None, backend=default_backend())
+        print "Loaded private key..."
+
+	def decryptSymKey(self, ctKey):
+		from cryptography.hazmat.primitives.asymmetric import padding
+		from cryptography.hazmat.primitives import hashes
+
+		ptSymKey = self.privKey.decrypt(ctKey,
+			padding.OAEP(
+				mgf=padding.MGF1(algorithm=hashes.SHA1()),
+				algorithm=hashes.SHA1(),
+				label=None
+        	)
+		)
+		print ptSymKey
+		return ptSymKey
+
+	def encryptTraffic(self, client, msg):
+		from cryptography.fernet import Fernet
+		f = Fernet(self.symKeyMap[client])
+		token = f.encrypt(msg)
+		return token
+
+	def decryptTraffic(self, client, token):
+		from cryptography.fernet import Fernet
+		f = Fernet(self.symKeyMap[client])
+		msg = f.decrypt(token)
+		return msg
 		
 	def getname(self, client):
 		return self.clientmap[client][1]
@@ -58,7 +84,8 @@ class ChatServer(object):
 		
 		for o in self.outputs:
 			if o == client:
-				o.send(helpCmd)
+				eHelpCmd = self.encryptTraffic(client, helpCmd)
+				o.send(eHelpCmd)
 				
 	def getListOfUsers(self, client):
 		users = []
@@ -68,7 +95,8 @@ class ChatServer(object):
 		listOfUsers = 'Online Users ' + str(users)
 		for o in self.outputs:
 			if o == client:
-				o.send(listOfUsers)
+				eListOfUsers = self.encryptTraffic(client, listOfUsers)
+				o.send(eListOfUsers)
 				
 	def sendMessageToAll(self, client, arguments):
 		for o in self.outputs:
@@ -77,7 +105,9 @@ class ChatServer(object):
 				for arg in arguments:
 					msg += (arg + ' ')
 				p = '{}: '.format(self.getname(client))
-				o.send(p + msg)
+				broadcast = p + msg
+				eBroadcast = self.encryptTraffic(client, broadcast)
+				o.send(eBroadcast)
 				
 	def sendMessage(self, client, arguments):
 		if len(arguments) < 2:
@@ -93,7 +123,9 @@ class ChatServer(object):
 				for o in self.outputs:
 					if o == key:
 						p = '{}: '.format(self.getname(client))
-						o.send(p + msg)
+						idvMsg = p + msg
+						eIdvMsg = self.encryptTraffic(client, msg)
+						o.send(eIdvMsg)
 						return
 		e = 'User {} is not connected.'.format(arguments[0])
 		self.errorMessage(client, '', e)
@@ -116,7 +148,9 @@ class ChatServer(object):
 			if usr == arguments[0]:
 				for o in self.outputs:
 					if o == key:
-						o.send('Shutdown')
+						kickMsg = 'You are the weakest link...goodbye.'
+						eKickMsg = self.encryptTraffic(client, kickMsg)
+						o.send(eKickMsg)
 						self.inputs.remove(o)
 						self.outputs.remove(o)
 						self.clientmap.pop(key)
@@ -130,7 +164,8 @@ class ChatServer(object):
 			error = errorMsg
 		for o in self.outputs:
 			if o == client:
-				o.send(error)
+				eError = self.encryptTraffic(client, error)	
+				o.send(eError)
 				
 	def isUserOnline(self, userName):
 		for key in self.clientmap:
@@ -152,9 +187,11 @@ class ChatServer(object):
 		if cmd == 'send': self.sendMessage(client, arguments); return;
 		if cmd == 'kick': self.adminKick(client, arguments); return;
 		self.errorMessage(client, data)
-		
+	
 	def serve(self):
-		
+
+		self.loadRSAprivKey()
+
 		self.inputs = [self.server,sys.stdin]
 		self.outputs = []
 
@@ -174,12 +211,10 @@ class ChatServer(object):
 				if s == self.server:
 					# handle the server socket
 					client, address = self.server.accept()
-					#print 'chatserver: got connection {} from {}'.format(client.fileno(), address)
-					print 'New user connected to The Office fanatics chat server from {}'.format(address)
-					# Read the login name
-					cname = client.recv(BUFSIZ).split('NAME: ')[1]
 					
-						
+					# Read the login name
+					cname = client.recv(self.maxBufSize).split('NAME: ')[1]
+					print '{} connected to The Office fanatics chat server from {}'.format(cname, address)
 					
 					# Compute client name and send back
 					self.clients += 1
@@ -193,7 +228,14 @@ class ChatServer(object):
 						o.send(msg)
 					
 					self.outputs.append(client)
-						
+			
+					ctSymKey = client.recv(self.maxBufSize).split('ctSymKey: ')[1]
+					print "Server received symmetric key from {}".format(cname)	
+					ptSymKey = self.decryptSymKey(ctSymKey)
+					print "Decrypted symmetric key from {}".format(cname)
+					self.symKeyMap[client] = ptSymKey
+
+					client.send('Server now communicating with {} using symmetric key...'.format(cname))
 
 				elif s == sys.stdin:
 					# handle standard input
@@ -202,8 +244,11 @@ class ChatServer(object):
 				else:
 					# handle all other sockets
 					try:
-						data = s.recv(BUFSIZ)
-						if data:
+						# receive encrypted data from client
+						eData = s.recv(self.maxBufSize)
+						print eData
+						if eData:
+							data = self.decryptTraffic(s, eData)
 							self.handleClientData(data, s)
 						else:
 							#print 'chatserver: %d hung up' % s.fileno()
@@ -220,11 +265,9 @@ class ChatServer(object):
 									self.groupmap[key].remove(usr)
 							self.clientmap.pop(s) 
 							for o in self.outputs:
-								# o.send(msg)
 								o.send(msg)
 								
 					except socket.error, e:
-						# Remove
 						self.inputs.remove(s)
 						self.outputs.remove(s)
 
@@ -254,9 +297,7 @@ def getPort(argsFromCommandLine):
 def main(argv):
 
 	port = getPort(argv)
-
-	s = ChatServer(port)
-	
+	s = serverTCPchat(port)
 	s.serve()
 
 if __name__ == "__main__":
