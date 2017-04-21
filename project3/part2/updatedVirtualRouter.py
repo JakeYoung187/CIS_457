@@ -24,10 +24,36 @@ class virtualRouter(object):
             self.arpHeader = arpHeader
             self.ipHeader = ipHeader
             self.icmpHeader = icmpHeader
+            #self.ethHeader = ethHeader(packetBytes)
+            #self.arpHeader = arpHeader(packetBytes)
+            #self.ipHeader = ipHeader(packetBytes)
+            #self.icmpHeader = icmpHeader(packetBytes)
             self.packetType = 'Unknown'
+
+		class ethHeader(object):
+			def __init__(self, raw):
+				#self.raw = packetBytes[0:14]
+            	self.header = struct.unpack("!6s6s2s", raw)
+
+		class arpHeader(object):
+			def __init__(self, raw):
+				#self.raw = packetBytes[14:42]
+                self.header = struct.unpack("2s2s1s1s2s6s4s6s4s", raw)
+
+		class ipHeader(object):
+			def __init__(self, raw):
+				#self.raw = packetBytes[14:32]
+                self.header = struct.unpack("1s1s2s2s2s1s1s2s4s4s", raw)
+		
+		class icmpHeader(object):
+			def __init__(self, packetBytes):
+				self.raw = packetBytes[34:42]
+				self.data = packetBytes[42:]
+                self.header = struct.unpack("1s1s2s4s", raw)
 
         def setPacketType(self):
 
+			'''
             eth_raw = self.packetBytes[0:14]
             self.ethHeader = struct.unpack("!6s6s2s", eth_raw)
 
@@ -51,6 +77,8 @@ class virtualRouter(object):
 
                 icmp_raw = self.packetBytes[34:42]
                 self.icmpHeader = struct.unpack("1s1s2s4s", icmp_raw)
+			'''
+
 
     def getPackets(self):
         while True:
