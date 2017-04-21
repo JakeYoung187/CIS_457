@@ -10,6 +10,9 @@ Details: Implementing a simplified version of a router in software
 
 import socket, os, sys, netifaces, struct, binascii, time
 
+from copy import deepcopy
+
+
 class virtualRouter(object):
     def __init__(self):
         self.socket = socket.socket(socket.AF_PACKET,socket.SOCK_RAW, 
@@ -19,65 +22,193 @@ class virtualRouter(object):
     class filePacket(object):
         def __init__(self, packetBytes, ethHeader=None, arpHeader=None,
                         ipHeader=None, icmpHeader=None):
+            self.netList = netifaces.interfaces()
             self.packetBytes = packetBytes
-            self.ethHeader = ethHeader
-            self.arpHeader = arpHeader
-            self.ipHeader = ipHeader
-            self.icmpHeader = icmpHeader
-            #self.ethHeader = ethHeader(packetBytes)
-            #self.arpHeader = arpHeader(packetBytes)
-            #self.ipHeader = ipHeader(packetBytes)
-            #self.icmpHeader = icmpHeader(packetBytes)
             self.packetType = 'Unknown'
-
-		class ethHeader(object):
-			def __init__(self, raw):
-				#self.raw = packetBytes[0:14]
-            	self.header = struct.unpack("!6s6s2s", raw)
-
-		class arpHeader(object):
-			def __init__(self, raw):
-				#self.raw = packetBytes[14:42]
-                self.header = struct.unpack("2s2s1s1s2s6s4s6s4s", raw)
-
-		class ipHeader(object):
-			def __init__(self, raw):
-				#self.raw = packetBytes[14:32]
-                self.header = struct.unpack("1s1s2s2s2s1s1s2s4s4s", raw)
-		
-		class icmpHeader(object):
-			def __init__(self, packetBytes):
-				self.raw = packetBytes[34:42]
-				self.data = packetBytes[42:]
-                self.header = struct.unpack("1s1s2s4s", raw)
-
+        
         def setPacketType(self):
 
-			'''
-            eth_raw = self.packetBytes[0:14]
-            self.ethHeader = struct.unpack("!6s6s2s", eth_raw)
+            self.ethHeader = self.setEthHeader(self.packetBytes[0:14])
 
-            # skip non-ARP packets
-            eth_type = self.ethHeader[2]
-
-            if eth_type == '\x08\x06':
+            if self.ethHeader.ethType == '\x08\x06':
                 self.packetType = 'ARP'
-                arp_raw = self.packetBytes[14:42]
-                self.arpHeader = struct.unpack("2s2s1s1s2s6s4s6s4s", arp_raw)
-
+                self.arpHeader = self.setARPHeader(self.packetBytes[14:42])
+                print self.ethHeader
+                print self.arpHeader
+            
             else:
-                ip_raw = self.packetBytes[14:34]
-                self.ipHeader = struct.unpack("1s1s2s2s2s1s1s2s4s4s", ip_raw)
-
-                ip_type = self.ipHeader[1]
-                ip_protocol = self.ipHeader[6]
+                self.ipHeader = self.setIPHeader(self.packetBytes[14:34])
                 
-                if ip_type == '\x00' and ip_protocol == '\x01':
+                if self.ipHeader.ipType == '\x00' and self.ipHeader.ipProtocol == '\x01':
                     self.packetType = 'ICMP'
+    
+                    self.icmpHeader = self.setICMPHeader(self.packetBytes)
 
-                icmp_raw = self.packetBytes[34:42]
-                self.icmpHeader = struct.unpack("1s1s2s4s", icmp_raw)
-			'''
+	class setEthHeader(object):
+            def __init__(self, raw):
+                self.header = struct.unpack("!6s6s2s", raw)
+                self.destMAC = self.header[0]
+                self.srcMAC = self.header[1]
+                self.ethType = self.header[2]
+            
+            def getEthHeader(self):
+                return (self.destMAC, self.srcMAC, self.ethType)
+
+            def __repr__(self):
+                outStr = "\n************************************************"
+                outStr += "\n****************_ETHERNET_FRAME_****************"
+                outStr += "\nDest MAC:        "+ binascii.hexlify(self.destMAC)
+                outStr += "\nSource MAC:      "+ binascii.hexlify(self.srcMAC)
+                outStr += "\nType:            "+ binascii.hexlify(self.ethType)
+                outStr += "\n************************************************"
+            
+                return outStr
+
+        class setARPHeader(object):
+            def __init__(self, raw):
+                self.header = struct.unpack("2s2s1s1s2s6s4s6s4s", raw)
+                self.hardwareType = self.header[0]
+                self.protocolType = self.header[1]
+                self.hardwareSize = self.header[2]
+                self.protocolSize = self.header[3]
+                self.opcode = self.header[4]
+                self.srcMAC = self.header[5]
+                self.srcIP = self.header[6]
+                self.destMAC = self.header[7]
+                self.destIP = self.header[8]
+
+            def getARPHeader(self):
+                return (self.hardwareType, self.protocolType, self.hardwareSize,
+                        self.protocolSize, self.opcode, self.srcMAC, self.srcIP,
+                        self.destMAC, self.destIP)
+
+            def __repr__(self):
+                outStr = "******************_ARP_HEADER_******************"
+                outStr += "\nHardware type:   "+ binascii.hexlify(self.hardwareType)
+                outStr += "\nProtocol type:   "+ binascii.hexlify(self.protocolType)
+                outStr += "\nHardware size:   "+ binascii.hexlify(self.hardwareSize)
+                outStr += "\nProtocol size:   "+ binascii.hexlify(self.protocolSize)
+                outStr += "\nOpcode:          "+ binascii.hexlify(self.opcode)
+                outStr += "\nSource MAC:      "+ binascii.hexlify(self.srcMAC)
+                outStr += "\nSource IP:       "+ socket.inet_ntoa(self.srcIP)
+                outStr += "\nDest MAC:        "+ binascii.hexlify(self.destMAC)
+                outStr += "\nDest IP:         "+ socket.inet_ntoa(self.destIP)
+                outStr += "\n************************************************\n"
+
+                return outStr
+
+        class setIPHeader(object):
+            def __init__(self, raw):
+                self.header = struct.unpack("1s1s2s2s2s1s1s2s4s4s", raw)
+                self.version = self.header[0]
+                self.ipType = self.header[1]
+                self.length = self.header[2]
+                self.ipID = self.header[3]
+                self.flags = self.header[4]
+                self.ttl = self.header[5]
+                self.ipProtocol = self.header[6]
+                self.checksum = self.header[7]
+                self.srcIP = self.header[8]
+                self.destIP = self.header[9]
+                
+            def __repr__(self):
+                outStr = "****************_IP_HEADER_*********************"
+                outStr += "\nVersion/IHL:     "+ binascii.hexlify(self.version)
+                outStr += "\nType of service: "+ binascii.hexlify(self.ipType)
+                outStr += "\nLength:          "+ binascii.hexlify(self.length)
+                outStr += "\nIdentification:  "+ binascii.hexlify(self.ipID)
+                outStr += "\nFlags/offset:    "+ binascii.hexlify(self.flags)
+                outStr += "\nTime to Live:    "+ binascii.hexlify(self.ttl)
+                outStr += "\nProtocol:        "+ binascii.hexlify(self.ipProtocol)
+                outStr += "\nChecksum:        "+ binascii.hexlify(self.checksum)
+                outStr += "\nSource IP:       "+ socket.inet_ntoa(self.srcIP)
+                outStr += "\nDest IP:         "+ socket.inet_ntoa(self.destIP)
+                outStr += "\n************************************************"
+
+                return outStr
+        
+        class setICMPHeader(object):
+            def __init__(self, packetBytes):
+                self.raw = packetBytes[34:42]
+                self.data = packetBytes[42:]
+                self.header = struct.unpack("1s1s2s4s", raw)
+                self.icmpType = self.header[0]
+                self.code = self.header[1]
+                self.checksum = self.header[2]
+                self.headerData = self.header[3]
+                
+            def __repr__(self):
+                outStr = "******************_ICMP_HEADER_*****************"
+                outStr += "Type of Msg:     "+ binascii.hexlify(self.icmpType)
+                outStr += "Code:            "+ binascii.hexlify(self.code)
+                outStr += "Checksum:        "+ binascii.hexlify(self.checksum)
+                outStr += "Header data:     "+ binascii.hexlify(self.headerData)
+                outStr += "Data:            "+ binascii.hexlify(self.data)
+                outStr += "\n************************************************\n"
+
+                return outStr
+
+
+        def getMACaddress(self, destIP):
+            
+            destMAC = ''
+
+            # loop over interfaces until find one that matches dest
+            for net in self.netList:
+                netIP = netifaces.ifaddresses(net)[2][0]['addr']
+                netMAC = netifaces.ifaddresses(net)[17][0]['addr']
+
+                if destIP == netIP:
+                    destMAC = netMAC
+
+            return mactobinary(destMAC)
+
+        def constructARPresponse(self):
+           
+            # create copies of headers
+            new_ethHeader = deepcopy(self.ethHeader)
+            new_arpHeader = deepcopy(self.arpHeader)
+
+            # change arp op code
+            new_arpHeader.opcode = '\x00\x02'
+
+            # swap IPs
+            new_arpHeader.srcIP = self.arpHeader.destIP
+            new_arpHeader.destIP = self.arpHeader.srcIP 
+
+            # source MAC becomes dest MAC
+            new_ethHeader.destMAC = self.ethHeader.srcMAC
+            new_arpHeader.destMAC = self.arpHeader.srcMAC
+
+            # find MAC address for destIP
+            new_MAC = self.getMACaddress(socket.inet_ntoa(self.arpHeader.destIP))
+            
+            # fill in hex version of dest MAC
+            new_ethHeader.srcMAC = new_MAC
+            new_arpHeader.srcMAC = new_MAC
+
+            # return tuple objects for each header
+            tup_newEthHeader = new_ethHeader.getEthHeader()
+            tup_newARPHeader = new_arpHeader.getARPHeader()
+
+            # pack header to binary
+            bin_ethHeader = struct.pack("6s6s2s", *tup_newEthHeader)
+            bin_arpHeader = struct.pack("2s2s1s1s2s6s4s6s4s", *tup_newARPHeader)
+
+            # combine ethernet and arp headers
+            new_packet = bin_ethHeader + bin_arpHeader
+
+            print "************************************************"    
+            print "****************_INCOMING_PACKET_***************"
+            print self.ethHeader
+            print self.arpHeader
+            
+            print "************************************************"    
+            print "****************_OUTGOING_PACKET_***************"
+            print new_ethHeader
+            print new_arpHeader
+            
+            return new_packet
 
 
     def getPackets(self):
@@ -85,20 +216,17 @@ class virtualRouter(object):
             raw_packet, addr = self.socket.recvfrom(self.maxPacketSize)
             fp = self.filePacket(raw_packet)
             fp.setPacketType()
-
-           if fp.packetType != "Unknown":
-                print fp.packetType
-
             if fp.packetType == "ARP":
+                arp_packet = fp.constructARPresponse()
                 
-                print fp.packetType
+                # send new packet to addr received from old packet
+                self.socket.sendto(arp_packet, addr)
+               
+                time.sleep(1)
+            
                 
-                #construct ARP
-
-            if fp.packetType = "ICMP":
-                
-                print fp.packetType
-
+            #if fp.packetType == "ICMP":
+        
                 # decrement TTL
 
                 # checksum
@@ -107,10 +235,7 @@ class virtualRouter(object):
 
                 # construct ICMP
                 
-
-            # send packet
-
-
+            #if fp.packetType != "Unknown":
 
 
 #http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-address-to-binary-data-for-use-in-an-ethernet-fr
