@@ -33,8 +33,6 @@ class virtualRouter(object):
             if self.ethHeader.ethType == '\x08\x06':
                 self.packetType = 'ARP'
                 self.arpHeader = self.setARPHeader(self.packetBytes[14:42])
-                print self.ethHeader
-                print self.arpHeader
             
             else:
                 self.ipHeader = self.setIPHeader(self.packetBytes[14:34])
@@ -55,7 +53,7 @@ class virtualRouter(object):
                 return (self.destMAC, self.srcMAC, self.ethType)
 
             def __repr__(self):
-                outStr = "\n************************************************"
+                outStr = "************************************************"
                 outStr += "\n****************_ETHERNET_FRAME_****************"
                 outStr += "\nDest MAC:        "+ binascii.hexlify(self.destMAC)
                 outStr += "\nSource MAC:      "+ binascii.hexlify(self.srcMAC)
@@ -110,7 +108,12 @@ class virtualRouter(object):
                 self.checksum = self.header[7]
                 self.srcIP = self.header[8]
                 self.destIP = self.header[9]
-                
+            
+            def getIPHeader(self):
+                return (self.version, self.ipType, self.length, self.ipID,
+                        self.flags, self.ttl, self.ipProtocol, self.checksum,
+                        self.srcIP, self.destIP)
+
             def __repr__(self):
                 outStr = "****************_IP_HEADER_*********************"
                 outStr += "\nVersion/IHL:     "+ binascii.hexlify(self.version)
@@ -131,19 +134,23 @@ class virtualRouter(object):
             def __init__(self, packetBytes):
                 self.raw = packetBytes[34:42]
                 self.data = packetBytes[42:]
-                self.header = struct.unpack("1s1s2s4s", raw)
+                self.header = struct.unpack("1s1s2s4s", self.raw)
                 self.icmpType = self.header[0]
                 self.code = self.header[1]
                 self.checksum = self.header[2]
                 self.headerData = self.header[3]
+
+            def getICMPHeader(self):
+                return (self.icmpType, self.code, self.checksum, 
+                        self.headerData)
                 
             def __repr__(self):
                 outStr = "******************_ICMP_HEADER_*****************"
-                outStr += "Type of Msg:     "+ binascii.hexlify(self.icmpType)
-                outStr += "Code:            "+ binascii.hexlify(self.code)
-                outStr += "Checksum:        "+ binascii.hexlify(self.checksum)
-                outStr += "Header data:     "+ binascii.hexlify(self.headerData)
-                outStr += "Data:            "+ binascii.hexlify(self.data)
+                outStr += "\nType of Msg:     "+ binascii.hexlify(self.icmpType)
+                outStr += "\nCode:            "+ binascii.hexlify(self.code)
+                outStr += "\nChecksum:        "+ binascii.hexlify(self.checksum)
+                outStr += "\nHeader data:     "+ binascii.hexlify(self.headerData)
+                outStr += "\nData:            "+ binascii.hexlify(self.data)
                 outStr += "\n************************************************\n"
 
                 return outStr
@@ -209,7 +216,51 @@ class virtualRouter(object):
             print new_arpHeader
             
             return new_packet
+        
+        def constructICMPEchoReply(self):
+           
+            # create copies of headers
+            new_ethHeader = deepcopy(self.ethHeader)
+            new_ipHeader = deepcopy(self.ipHeader)
+            new_icmpHeader = deepcopy(self.icmpHeader)
+            
+            # swap MACs
+            new_ethHeader.srcMAC = self.ethHeader.destMAC
+            new_ethHeader.destMAC = self.ethHeader.srcMAC
+            
+            # swap IPs
+            new_ipHeader.srcIP = self.ipHeader.destIP
+            new_ipHeader.destIP = self.ipHeader.srcIP
 
+            # change type of msg
+            new_icmpHeader.icmpType = '\x00'
+
+            # return tuple objects for each header
+            tup_newEthHeader = new_ethHeader.getEthHeader()
+            tup_newIPHeader = new_ipHeader.getIPHeader()
+            tup_newICMPHeader = new_icmpHeader.getICMPHeader()
+
+            # pack back to binary
+            bin_ethHeader = struct.pack("6s6s2s", *tup_newEthHeader)
+            bin_ipHeader = struct.pack("1s1s2s2s2s1s1s2s4s4s", *tup_newIPHeader)
+            bin_icmpHeader = struct.pack("1s1s2s4s", *tup_newICMPHeader)
+
+            # combine eth, ip, and icmp headers and icmp data
+            new_packet = bin_ethHeader + bin_ipHeader + bin_icmpHeader + new_icmpHeader.data
+
+            print "************************************************"    
+            print "****************_INCOMING_PACKET_***************"
+            print self.ethHeader
+            print self.ipHeader
+            print self.icmpHeader
+            
+            print "************************************************"    
+            print "****************_OUTGOING_PACKET_***************"
+            print new_ethHeader
+            print new_ipHeader
+            print new_icmpHeader
+
+            return new_packet
 
     def getPackets(self):
         while True:
@@ -218,28 +269,18 @@ class virtualRouter(object):
             fp.setPacketType()
             if fp.packetType == "ARP":
                 arp_packet = fp.constructARPresponse()
-                
-                # send new packet to addr received from old packet
                 self.socket.sendto(arp_packet, addr)
-               
-                time.sleep(1)
-            
-                
-            #if fp.packetType == "ICMP":
-        
+                #time.sleep(3)
+            if fp.packetType == "ICMP":
                 # decrement TTL
-
                 # checksum
-
                 # get routing nextHop
-
                 # construct ICMP
-                
-            #if fp.packetType != "Unknown":
-
+                icmp_packet = fp.constructICMPEchoReply()
+                self.socket.sendto(icmp_packet, addr)
+                #time.sleep(3)
 
 #http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-address-to-binary-data-for-use-in-an-ethernet-fr
-
 def mactobinary(mac):
   return binascii.unhexlify(mac.replace(':', ''))
 
