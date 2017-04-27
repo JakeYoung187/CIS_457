@@ -26,6 +26,23 @@ class virtualRouter(object):
             self.packetBytes = packetBytes
             self.packetType = 'Unknown'
         
+        def displayPacket(self, inout):
+
+            print "************************************************"    
+            if inout == "in":
+                print "****************_INCOMING_PACKET_***************"
+            elif inout == "out":
+                print "****************_OUTGOING_PACKET_***************"
+            
+            if self.packetType == "ARP":
+                print self.ethHeader
+                print self.arpHeader
+            
+            elif self.packetType == "ICMP":
+                print self.ethHeader
+                print self.ipHeader
+                print self.icmpHeader
+        
         def setPacketType(self):
 
             self.ethHeader = self.setEthHeader(self.packetBytes[0:14])
@@ -41,6 +58,7 @@ class virtualRouter(object):
                     self.packetType = 'ICMP'
     
                     self.icmpHeader = self.setICMPHeader(self.packetBytes)
+        
 
 	class setEthHeader(object):
             def __init__(self, raw):
@@ -150,7 +168,7 @@ class virtualRouter(object):
                 outStr += "\nCode:            "+ binascii.hexlify(self.code)
                 outStr += "\nChecksum:        "+ binascii.hexlify(self.checksum)
                 outStr += "\nHeader data:     "+ binascii.hexlify(self.headerData)
-                outStr += "\nData:            "+ binascii.hexlify(self.data)
+                #outStr += "\nData:            "+ binascii.hexlify(self.data)
                 outStr += "\n************************************************\n"
 
                 return outStr
@@ -206,19 +224,11 @@ class virtualRouter(object):
 
             # combine ethernet and arp headers
             new_packet = bin_ethHeader + bin_arpHeader
-            '''
-            print "************************************************"    
-            print "****************_INCOMING_PACKET_***************"
-            print self.ethHeader
-            print self.arpHeader
             
-            print "************************************************"    
-            print "****************_OUTGOING_PACKET_***************"
-            print new_ethHeader
-            print new_arpHeader
-            '''
             return new_packet
-        
+
+
+
         def constructICMPEchoReply(self):
            
             # create copies of headers
@@ -249,37 +259,74 @@ class virtualRouter(object):
 
             # combine eth, ip, and icmp headers and icmp data
             new_packet = bin_ethHeader + bin_ipHeader + bin_icmpHeader + new_icmpHeader.data
-            '''
-            print "************************************************"    
-            print "****************_INCOMING_PACKET_***************"
-            print self.ethHeader
-            print self.ipHeader
-            print self.icmpHeader
             
-            print "************************************************"    
-            print "****************_OUTGOING_PACKET_***************"
-            print new_ethHeader
-            print new_ipHeader
-            print new_icmpHeader
-            '''
             return new_packet
+
+        
+        def verifyTTL(self):
+            
+            hexTTL = binascii.hexlify(self.ipHeader.ttl)
+            intTTL = int(hexTTL, 16)
+            intTTL -= 1
+
+            if intTTL < 1:
+                return False
+
+            else:
+                newHexTTL = hex(intTTL)
+                self.ipHeader.ttl = binascii.unhexlify(newHexTTL[2:])
+                return True
+        # Heavily influenced by this: 
+        #   https://www.codeproject.com/Tips/460867/Python-Implementation-of-IP-Checksum
+        def checksum(header):
+            csum = 0
+            pos = 0
+            result = 0
+
+            while queue > 1:
+                chunk = int((str('%02x' % (header[pos],)) + str('%02x' % (header[pos+1],))), 16)
+                csum += chunk
+                queue -= 2
+                pos -= 2
+            if queue:
+                csum += header[pos]
+
+            csum = (csum >> 16) + (csum & 0xffff)
+            csum += (csum >> 16)
+            result = (~csum) & 0xffff
+
+            return result
+
 
     def getPackets(self):
         while True:
             raw_packet, addr = self.socket.recvfrom(self.maxPacketSize)
             fp = self.filePacket(raw_packet)
             fp.setPacketType()
+            
             if fp.packetType == "ARP":
+                fp.displayPacket("in")
                 arp_packet = fp.constructARPresponse()
+                fp.displayPacket("out")
                 self.socket.sendto(arp_packet, addr)
                 time.sleep(3)
+            
             if fp.packetType == "ICMP":
+                fp.displayPacket("in")
+            
                 # decrement TTL
-                # checksum
+                ttlFlag = fp.verifyTTL()
+                
+                # get checksum
+                
+                
                 # get routing nextHop
+                #print addr[0], addr[1:]
+                
                 # construct ICMP
                 icmp_packet = fp.constructICMPEchoReply()
-                print addr[0], addr[1:]
+                fp.displayPacket("out")
+                
                 self.socket.sendto(icmp_packet, addr)
                 #time.sleep(3)
 
@@ -339,26 +386,6 @@ def routingLookup(forwardingTable, srcIP, destIP):
                 print destCheck, matchCheck, nextHop, interface
 
 
-# Heavily influenced by this: 
-#   https://www.codeproject.com/Tips/460867/Python-Implementation-of-IP-Checksum
-def checksum(header):
-    csum = 0
-    pos = 0
-    result = 0
-
-    while queue > 1:
-        chunk = int((str('%02x' % (header[pos],)) + str('%02x' % (header[pos+1],))), 16)
-        csum += chunk
-        queue -= 2
-        pos -= 2
-    if queue:
-        csum += header[pos]
-
-    csum = (csum >> 16) + (csum & 0xffff)
-    csum += (csum >> 16)
-    result = (~csum) & 0xffff
-
-    return result
 
 
 def main(argv):
