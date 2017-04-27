@@ -18,6 +18,36 @@ class virtualRouter(object):
         self.socket = socket.socket(socket.AF_PACKET,socket.SOCK_RAW, 
                         socket.htons(0x003))
         self.maxPacketSize = 1024
+        self.forwardingTable = self.parseForwardingTable()
+
+    def parseForwardingTable(self):
+
+        forwardingTable = {}
+        
+        routingTables = ['r1-table.txt', 'r2-table.txt']
+
+        for rt in routingTables:
+            with open(rt, 'r') as fp:
+                for line in fp:
+                    lineParts = line.rstrip().split(' ')
+                    prefixParts = lineParts[0].split('/')
+                    prefix = prefixParts[0]
+                    prefixLen = int(prefixParts[1])
+
+                    nextHop = lineParts[1]
+                    interface = lineParts[2]
+                    
+                    router = rt[0:2]
+
+                    if router in forwardingTable:
+                        forwardingTable[router].append([prefix, prefixLen, nextHop, interface])
+                    else:
+                        forwardingTable[router] = [[prefix, prefixLen, nextHop, interface]]
+
+        print forwardingTable
+
+        return forwardingTable
+
         
     class filePacket(object):
         def __init__(self, packetBytes, ethHeader=None, arpHeader=None,
@@ -226,7 +256,38 @@ class virtualRouter(object):
             new_packet = bin_ethHeader + bin_arpHeader
             
             return new_packet
+        
+        def constructARPrequest(self, srcIP, destIP):
+           
+            # create copies of headers
+            new_ethHeader = deepcopy(self.ethHeader)
+            new_arpHeader = deepcopy(self.arpHeader)
 
+            # change arp op code
+            new_arpHeader.opcode = '\x00\x01'
+
+            # set IPs
+            new_arpHeader.srcIP = srcIP
+            new_arpHeader.destIP = destIP 
+
+            # set MACs
+            new_ethHeader.destMAC = '\xff\xff\xff\xff\xff\xff\xff\xff'
+            new_arpHeader.destMAC = '\xff\xff\xff\xff\xff\xff\xff\xff'
+            new_arpHeader.srcMAC = self.arpHeader.srcMAC
+            new_ethHeader.srcMAC = self.ethHeader.srcMAC
+
+            # return tuple objects for each header
+            tup_newEthHeader = new_ethHeader.getEthHeader()
+            tup_newARPHeader = new_arpHeader.getARPHeader()
+
+            # pack header to binary
+            bin_ethHeader = struct.pack("6s6s2s", *tup_newEthHeader)
+            bin_arpHeader = struct.pack("2s2s1s1s2s6s4s6s4s", *tup_newARPHeader)
+
+            # combine ethernet and arp headers
+            new_packet = bin_ethHeader + bin_arpHeader
+            
+            return new_packet
 
 
         def constructICMPEchoReply(self):
@@ -264,21 +325,29 @@ class virtualRouter(object):
 
         
         def verifyTTL(self):
-            
+
+            verify = True
+
             hexTTL = binascii.hexlify(self.ipHeader.ttl)
             intTTL = int(hexTTL, 16)
             intTTL -= 1
 
             if intTTL < 1:
-                return False
+                verify = False
 
             else:
                 newHexTTL = hex(intTTL)
                 self.ipHeader.ttl = binascii.unhexlify(newHexTTL[2:])
-                return True
-        # Heavily influenced by this: 
-        #   https://www.codeproject.com/Tips/460867/Python-Implementation-of-IP-Checksum
-        def checksum(header):
+            
+            return verify
+        
+        def verifyChecksum(self):
+
+            verify = True
+
+            header = str(self.ipHeader)
+            queue = len(header)
+
             csum = 0
             pos = 0
             result = 0
@@ -295,8 +364,35 @@ class virtualRouter(object):
             csum += (csum >> 16)
             result = (~csum) & 0xffff
 
-            return result
+            if result != 0:
+                verify = False
 
+            return verify
+
+    def routingLookup(self, srcIP, destIP):
+        
+        ipSub = {16: 4, 24: 6}
+
+        # get which router from ip?
+        # assume working with r1
+        lookupTable = self.forwardingTable['r1']
+        for entry in lookupTable:
+            prefix = entry[0]
+            prefixLen = entry[1]
+            nextHop = entry[2]
+            interface = entry[3]
+
+            matchCheck = prefix[:ipSub[prefixLen]]
+
+            destCheck = destIP[:ipSub[prefixLen]]
+
+            if destCheck == matchCheck:
+                if nextHop == '-':
+                    print destCheck, matchCheck, destIP, interface
+                    return destIP
+                else:
+                    print destCheck, matchCheck, nextHop, interface
+                    return nextHop
 
     def getPackets(self):
         while True:
@@ -315,14 +411,20 @@ class virtualRouter(object):
                 fp.displayPacket("in")
             
                 # decrement TTL
-                ttlFlag = fp.verifyTTL()
+                #ttlFlag = fp.verifyTTL()
                 
                 # get checksum
-                
+                #csFlag = fp.verifyChecksum()                
                 
                 # get routing nextHop
                 #print addr[0], addr[1:]
-                
+                srcIPstr = socket.inet_ntoa(fp.ipHeader.srcIP)
+                destIPstr = socket.inet_ntoa(fp.ipHeader.destIP)
+                nextHop = self.routingLookup(srcIPstr, destIPstr)
+
+                # construct ARP request for nextHop
+                #self.constructARPrequest(nextHop, destIP)
+
                 # construct ICMP
                 icmp_packet = fp.constructICMPEchoReply()
                 fp.displayPacket("out")
@@ -330,69 +432,11 @@ class virtualRouter(object):
                 self.socket.sendto(icmp_packet, addr)
                 #time.sleep(3)
 
-#http://stackoverflow.com/questions/2986702/need-some-help-converting-a-mac-address-to-binary-data-for-use-in-an-ethernet-fr
 def mactobinary(mac):
   return binascii.unhexlify(mac.replace(':', ''))
 
-def parseForwardingTable():
-
-    forwardingTable = {}
-    
-    routingTables = ['r1-table.txt', 'r2-table.txt']
-
-    for rt in routingTables:
-        with open(rt, 'r') as fp:
-            for line in fp:
-                lineParts = line.rstrip().split(' ')
-                prefixParts = lineParts[0].split('/')
-                prefix = prefixParts[0]
-                prefixLen = int(prefixParts[1])
-
-                nextHop = lineParts[1]
-                interface = lineParts[2]
-                
-                router = rt[0:2]
-
-                if router in forwardingTable:
-                    forwardingTable[router].append([prefix, prefixLen, nextHop, interface])
-                else:
-                    forwardingTable[router] = [[prefix, prefixLen, nextHop, interface]]
-
-    print forwardingTable
-
-    return forwardingTable
-
-def routingLookup(forwardingTable, srcIP, destIP):
-    
-    ipSub = {16: 4, 24: 6}
-
-    # get which router from ip?
-    # assume working with r1
-    lookupTable = forwardingTable['r1']
-    for entry in lookupTable:
-        prefix = entry[0]
-        prefixLen = entry[1]
-        nextHop = entry[2]
-        interface = entry[3]
-
-        matchCheck = prefix[:ipSub[prefixLen]]
-
-        destCheck = destIP[:ipSub[prefixLen]]
-
-        if destCheck == matchCheck:
-            if nextHop == '-':
-                print destCheck, matchCheck, destIP, interface
-            else:
-                print destCheck, matchCheck, nextHop, interface
-
-
-
 
 def main(argv):
-
-    ft = parseForwardingTable()
-    routingLookup(ft, '10.1.0.1', '10.3.0.1')
-    routingLookup(ft, '10.1.0.1', '10.1.1.5')
 
     vr = virtualRouter()
     vr.getPackets()
