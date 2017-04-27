@@ -374,6 +374,8 @@ class virtualRouter(object):
 
     def routingLookup(self, srcIP, destIP):
         
+		foundMatch = 0
+
         ipSub = {16: 4, 24: 6}
 
         # get which router from ip?
@@ -392,10 +394,13 @@ class virtualRouter(object):
             if destCheck == matchCheck:
                 if nextHop == '-':
                     print destCheck, matchCheck, destIP, interface
-                    return destIP
+                    foundMatch = destIP
                 else:
                     print destCheck, matchCheck, nextHop, interface
-                    return nextHop
+                    foundMatch = nextHop
+		
+		return foundMatch
+			
 
     def getPackets(self):
         while True:
@@ -414,26 +419,35 @@ class virtualRouter(object):
                 fp.displayPacket("in")
             
                 # decrement TTL
-                #ttlFlag = fp.verifyTTL()
+                ttlFlag = fp.verifyTTL()
                 
                 # get checksum
-                #csFlag = fp.verifyChecksum()                
+                csFlag = fp.verifyChecksum()                
                 
                 # get routing nextHop
                 #print addr[0], addr[1:]
                 srcIPstr = socket.inet_ntoa(fp.ipHeader.srcIP)
                 destIPstr = socket.inet_ntoa(fp.ipHeader.destIP)
-                nextHop = self.routingLookup(srcIPstr, destIPstr)
+                
+				# if not 0 then found nextHop
+				nextHop = self.routingLookup(srcIPstr, destIPstr)
+				
+				# if no next hop, set dest unreachable msg
+				if nextHop == 0:
+					fp.icmpHeader.icmpType = '\x00\x03'
 
                 # construct ARP request for nextHop
-                #self.constructARPrequest(nextHop, destIP)
+                self.constructARPrequest(nextHop, destIP)
 
                 # construct ICMP
                 icmp_packet = fp.constructICMPEchoReply()
                 fp.displayPacket("out")
                 
-                self.socket.sendto(icmp_packet, addr)
-                #time.sleep(3)
+				# if ttl and checksum pass
+				if ttlFlag and csFlag:
+                	self.socket.sendto(icmp_packet, addr)
+                
+				#time.sleep(3)
 
 def mactobinary(mac):
   return binascii.unhexlify(mac.replace(':', ''))
