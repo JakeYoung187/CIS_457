@@ -6,6 +6,9 @@ Version: April 5, 2017
 Purpose: CIS 457 Project 3 - Virtual Router
 Details: Implementing a simplified version of a router in software
          in order to learn about the function of a router.
+
+--- program is not fully functional ---
+
 '''
 
 import socket, os, sys, netifaces, struct, binascii, time
